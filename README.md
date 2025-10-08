@@ -1,22 +1,22 @@
 # online_annavaram
 
-Stepwise rebuild of an e‑commerce platform UI and APIs, replicated feature‑by‑feature from the reference project `MERN_Stack_Project_Ecommerce_Hayroo`, but implemented independently here.
+Andhra Pradesh–style foods website. Built step‑by‑step, referencing `MERN_Stack_Project_Ecommerce_Hayroo` only for layout ideas. This repo is independent.
 
-## Step 1: Home Page (Complete)
+## Homepage (Andhra Foods)
+- Slider shows three placeholder images: `home_image_1/2/3` (replace later).
+- All images link to the Instagram handle (configurable).
+- Categories tailored for Andhra foods: wheat (dalia), jaggery, sugar, ghee.
+- Prices shown in rupees (₹).
 
-What’s done:
-- New React client scaffolded with Vite in `online_annavaram/client`.
-- Tailwind CSS configured for styling to match the reference layout classes.
-- Base layout with `NavBar` and `Footer` (`src/components/layout/Layout.jsx`).
-- Home page composed of `Slider`, `ProductCategory` (category/search/price slider), and `SingleProduct` (product grid) in `src/components/shop/home/`.
-- Verified production build.
-
-Next steps will bring real data, routing, and server integration.
+Config: `online_annavaram/client/src/config/site.js`
+- `instagramUrl`: set to your real Instagram handle.
+- `currencySymbol`: default `₹`.
+- `categories`: homepage/category dropdown.
 
 ## Prerequisites
 - Node.js 18+ and npm
 
-## Run the client (Dev)
+## Run (Dev)
 ```
 cd online_annavaram/client
 npm install
@@ -29,9 +29,19 @@ Open the URL printed by Vite (typically `http://localhost:5173`).
 cd online_annavaram/client
 npm run build
 ```
-Build output is in `online_annavaram/client/dist`.
+Output in `online_annavaram/client/dist`.
 
-## Notes
-- The reference repository is used only for guidance; code is re‑implemented here.
-- Server/API and real data wiring will be added in subsequent steps.
+## Deploy (Vercel)
+Option A (via UI):
+- Import the Git repo into Vercel.
+- Set Project Root to `online_annavaram/client`.
+- Framework preset: Vite.
+- Build Command: `npm run build`. Output Directory: `dist`.
 
+Option B (via config):
+- The repo includes `vercel.json` that builds `online_annavaram/client` with `@vercel/static-build` and serves as a SPA with rewrites.
+
+## Roadmap
+- Wire real product data and cart/checkout.
+- Add product detail routes and SEO meta.
+- Integrate order/contact flows suitable for Andhra foods.

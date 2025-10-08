@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { SITE_CONFIG } from '../../../config/site'
 
 const ProductCategory = () => {
   const [q, setQ] = useState('')
@@ -11,9 +12,9 @@ const ProductCategory = () => {
           <label className="text-sm text-gray-600">Category</label>
           <select className="border rounded-md px-2 py-1 text-sm">
             <option>All</option>
-            <option>Electronics</option>
-            <option>Grocery</option>
-            <option>Fashion</option>
+            {SITE_CONFIG.categories.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -31,4 +32,3 @@ const ProductCategory = () => {
 }
 
 export default ProductCategory
-
