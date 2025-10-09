@@ -1,5 +1,5 @@
 # online_annavaram
-
+ 
 Andhra Pradesh–style foods website. Built step‑by‑step, referencing `MERN_Stack_Project_Ecommerce_Hayroo` only for layout ideas. This repo is independent.
 
 ## Homepage (Andhra Foods)
