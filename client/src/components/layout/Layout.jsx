@@ -1,36 +1,54 @@
 import React from 'react'
-
-const NavBar = () => (
-  <header className="sticky top-0 z-20 bg-white border-b border-gray-200">
-    <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <span className="font-bold text-lg">Online Annavaram</span>
-      <nav className="space-x-4 text-sm">
-        <a href="#" className="text-gray-700 hover:text-gray-900">Home</a>
-        <a href="#" className="text-gray-700 hover:text-gray-900">Shop</a>
-        <a href="#" className="text-gray-700 hover:text-gray-900">Contact</a>
-      </nav>
-    </div>
-  </header>
-)
-
-const Footer = () => (
-  <footer className="mt-auto bg-gray-900 text-gray-200">
-    <div className="max-w-6xl mx-auto px-4 py-6 text-sm flex items-center justify-between">
-      <span>© {new Date().getFullYear()} Online Annavaram</span>
-      <span className="opacity-80">Built step-by-step</span>
-    </div>
-  </footer>
-)
+import { SITE_CONTENT } from '../../config/site'
 
 const Layout = ({ children }) => {
+  const { brand, navLinks, footer } = SITE_CONTENT
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <NavBar />
-      <main className="flex-1">{children}</main>
-      <Footer />
+    <div className="site-wrapper">
+      <header className="site-header">
+        <div className="container header-inner">
+          <a href="#" className="logo" aria-label={brand.name}>
+            <img src="/images/logo.png" alt={`${brand.name} logo`} width="80" height="70" />
+          </a>
+          <nav className="navigation" aria-label="Primary Navigation">
+            <ul>
+              {navLinks.map((link) => (
+                <li key={link.label}>
+                  <a href={link.href}>{link.label}</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+      </header>
+      <main>{children}</main>
+      <footer className="site-footer" id="footer">
+        <div className="container footer-grid">
+          {footer.columns.map((column) => (
+            <div className="footer-col" key={column.title}>
+              <h4>{column.title}</h4>
+              <ul className={column.className ? column.className : undefined}>
+                {column.links &&
+                  column.links.map((link) => (
+                    <li key={link.label}>
+                      <a href={link.href}>{link.label}</a>
+                    </li>
+                  ))}
+                {column.items && column.items.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div className="container">
+          <p className="copyright">
+            {'\u00A9 '}
+            {footer.copyright}
+          </p>
+        </div>
+      </footer>
     </div>
   )
 }
 
 export default Layout
-
