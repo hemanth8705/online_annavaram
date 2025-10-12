@@ -1,35 +1,83 @@
 # online_annavaram
- 
-Andhra Pradesh–style foods website. Built step‑by‑step, referencing `MERN_Stack_Project_Ecommerce_Hayroo` only for layout ideas. This repo is independent.
+
+Andhra Pradesh-style foods website. Built step-by-step, referencing `MERN_Stack_Project_Ecommerce_Hayroo` only for layout ideas. This repo is independent.
 
 ## Homepage (Andhra Foods)
-- Slider shows three placeholder images: `home_image_1/2/3` (replace later).
-- All images link to the Instagram handle (configurable).
-- Categories tailored for Andhra foods: wheat (dalia), jaggery, sugar, ghee.
-- Prices shown in rupees (₹).
+- Slider showcases signature snacks (replace images under `public/telugu_snacks_images`).
+- Promo tiles highlight hampers and snack shelves.
+- Hero CTA links to the full product catalogue.
 
 Config: `online_annavaram/client/src/config/site.js`
-- `instagramUrl`: set to your real Instagram handle.
-- `currencySymbol`: default `₹`.
-- `categories`: homepage/category dropdown.
+- Update `brand`, `navLinks`, and homepage `productSections`.
+- `FALLBACK_PRODUCTS` powers the UI when the API is offline.
+
+### Frontend Routes
+- `/` — Home hero + curated sections.
+- `/products` — Catalogue with category filtering.
+- `/products/:id` — Product detail with quantity control.
+- `/cart` — Review, edit, and remove cart items.
+- `/checkout` — Shipping form + order summary.
+- `/order/success` & `/order/failure` — Payment result views.
 
 ## Prerequisites
 - Node.js 18+ and npm
 
-## Run (Dev)
-```
+## Frontend (Vite + React)
+```bash
 cd online_annavaram/client
 npm install
 npm run dev
 ```
 Open the URL printed by Vite (typically `http://localhost:5173`).
 
-## Build (Prod)
+Optional environment overrides: `online_annavaram/client/.env`
 ```
+VITE_API_BASE_URL=http://localhost:4000/api
+# Map to a real MongoDB user id for backend-powered cart/orders.
+VITE_DEMO_USER_ID=<paste-seeded-user-id>
+```
+If `VITE_DEMO_USER_ID` is omitted or the API is unreachable, the cart falls back to local storage.
+
+### Build (Prod)
+```bash
 cd online_annavaram/client
 npm run build
 ```
 Output in `online_annavaram/client/dist`.
+
+## Backend API (Express + MongoDB)
+```bash
+cd online_annavaram/backend
+npm install
+```
+
+Config: `online_annavaram/backend/.env`  
+Example values in `.env.example`. Set:
+- `PORT` (defaults to `4000`)
+- `MONGODB_URI` (MongoDB connection string; leave empty to use the in-memory dev database)
+
+Run (Dev):
+```bash
+cd online_annavaram/backend
+npm run dev
+```
+The server listens on `http://localhost:4000` (or your configured port).
+
+Quick checks:
+- `GET /` → health check (`{"message":"Server running"}`)
+- `GET /api/test` → verifies API wiring and database status
+
+Full endpoint reference: `docs/api-endpoints.md`.  
+Schema reference: `docs/schema.md`.
+
+### Sample Data & Smoke Tests
+```bash
+# reseed demo data
+npm run seed
+
+# run scripted product/cart/order flow
+npm run test:api
+```
 
 ## Deploy (Vercel)
 Option A (via UI):

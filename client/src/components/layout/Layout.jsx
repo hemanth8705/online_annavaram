@@ -1,28 +1,66 @@
-import React from 'react'
-import { SITE_CONTENT } from '../../config/site'
+import React, { useMemo } from 'react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { SITE_CONTENT } from '../../config/site';
+import useCart from '../../hooks/useCart';
 
 const Layout = ({ children }) => {
-  const { brand, navLinks, footer } = SITE_CONTENT
+  const { brand, navLinks, footer } = SITE_CONTENT;
+  const location = useLocation();
+  const { cart } = useCart();
+
+  const activeNavLinks = useMemo(
+    () =>
+      navLinks.map((link) =>
+        link.to
+          ? link
+          : {
+              ...link,
+              to: link.href || '#',
+            }
+      ),
+    [navLinks]
+  );
+
+  const totalQuantity = cart?.totals?.quantity ?? 0;
+
+  const content = children ?? <Outlet />;
 
   return (
     <div className="site-wrapper">
       <header className="site-header">
         <div className="container header-inner">
-          <a href="#" className="logo" aria-label={brand.name}>
+          <Link to="/" className="logo" aria-label={brand.name}>
             <img src="/images/logo.png" alt={`${brand.name} logo`} width="80" height="70" />
-          </a>
+          </Link>
           <nav className="navigation" aria-label="Primary Navigation">
             <ul>
-              {navLinks.map((link) => (
+              {activeNavLinks.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href}>{link.label}</a>
+                  <NavLink
+                    to={link.to}
+                    className={({ isActive }) => (isActive ? 'active' : undefined)}
+                    end={link.to === '/'}
+                  >
+                    {link.label}
+                  </NavLink>
                 </li>
               ))}
             </ul>
           </nav>
+          <Link
+            to="/cart"
+            className="cart-chip"
+            aria-label={`Cart with ${totalQuantity} items`}
+            state={{ from: location.pathname }}
+          >
+            <span className="cart-chip__icon" aria-hidden="true">
+              🛒
+            </span>
+            <span className="cart-chip__count">{totalQuantity}</span>
+          </Link>
         </div>
       </header>
-      <main>{children}</main>
+      <main>{content}</main>
       <footer className="site-footer" id="footer">
         <div className="container footer-grid">
           {footer.columns.map((column) => (
@@ -30,11 +68,17 @@ const Layout = ({ children }) => {
               <h4>{column.title}</h4>
               <ul className={column.className ? column.className : undefined}>
                 {column.links &&
-                  column.links.map((link) => (
-                    <li key={link.label}>
-                      <a href={link.href}>{link.label}</a>
-                    </li>
-                  ))}
+                  column.links.map((link) =>
+                    link.to ? (
+                      <li key={link.label}>
+                        <Link to={link.to}>{link.label}</Link>
+                      </li>
+                    ) : (
+                      <li key={link.label}>
+                        <a href={link.href}>{link.label}</a>
+                      </li>
+                    )
+                  )}
                 {column.items && column.items.map((item) => <li key={item}>{item}</li>)}
               </ul>
             </div>
@@ -48,7 +92,7 @@ const Layout = ({ children }) => {
         </div>
       </footer>
     </div>
-  )
-}
+  );
+};
 
-export default Layout
+export default Layout;

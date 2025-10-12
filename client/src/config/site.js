@@ -1,15 +1,16 @@
 export const SITE_CONTENT = {
   brand: {
     name: 'ONLINE ANNAVARAM',
-    tagline: 'ఆంధ్ర రుచులు, ప్రతీ ముక్కలో ఆనందం',
-    description: 'Authentic Telugu savouries hand-crafted from the temple town straight to your table.',
-    cta: { label: 'Taste the Tradition', href: '#popular' },
+    tagline: 'Temple-town snacks handcrafted with Andhra devotion.',
+    description:
+      'Authentic Telugu savouries made fresh and shipped across India. Every bite carries the warmth of Annavaram streets.',
+    cta: { label: 'Taste the Tradition', href: '/products' },
   },
   navLinks: [
-    { label: 'Home', href: '#' },
-    { label: 'Snacks', href: '#popular' },
-    { label: 'Festive Hampers', href: '#collections' },
-    { label: 'Contact', href: '#footer' },
+    { label: 'Home', to: '/' },
+    { label: 'Shop All', to: '/products' },
+    { label: 'My Cart', to: '/cart' },
+    { label: 'Checkout', to: '/checkout' },
   ],
   productSections: [
     {
@@ -19,23 +20,23 @@ export const SITE_CONTENT = {
         {
           name: 'Kakinada Kaja',
           category: 'Classic Sweets',
-          price: '\u20B9 320.00',
+          price: 32000,
           image: '/telugu_snacks_images/snacks05.jpg',
-          actionLabel: 'Add to Brass Plate',
+          actionLabel: 'Add to Cart',
         },
         {
           name: 'Gavvalu with Jaggery',
           category: 'Festive Nibbles',
-          price: '\u20B9 280.00',
+          price: 28000,
           image: '/telugu_snacks_images/snacks06.jpg',
-          actionLabel: 'Order Batch',
+          actionLabel: 'Add to Cart',
         },
         {
           name: 'Chekkalu Crunch',
           category: 'Savory Snacks',
-          price: '\u20B9 240.00',
+          price: 24000,
           image: '/telugu_snacks_images/snacks07.jpg',
-          actionLabel: 'Add to Brass Plate',
+          actionLabel: 'Add to Cart',
         },
       ],
     },
@@ -46,21 +47,21 @@ export const SITE_CONTENT = {
         {
           name: 'Madatha Kaja Swirls',
           category: 'Temple Special',
-          price: '\u20B9 340.00',
+          price: 34000,
           image: '/telugu_snacks_images/snacks08.jpg',
           actionLabel: 'Reserve Box',
         },
         {
           name: 'Kara Boondi Mix',
           category: 'Tea-Time Partner',
-          price: '\u20B9 220.00',
+          price: 22000,
           image: '/telugu_snacks_images/snacks09.jpg',
-          actionLabel: 'Add to Brass Plate',
+          actionLabel: 'Add to Cart',
         },
         {
           name: 'Bellam Murukulu',
           category: 'Sweet Crunch',
-          price: '\u20B9 260.00',
+          price: 26000,
           image: '/telugu_snacks_images/snacks10.jpg',
           actionLabel: 'Reserve Box',
         },
@@ -70,21 +71,24 @@ export const SITE_CONTENT = {
   infoBoxes: [
     {
       title: 'Temple-Town Gift Boxes',
-      description: "Curated hampers packed with prasadam-inspired sweets that honour Annayya's legacy.",
+      description:
+        "Curated hampers packed with prasadam-inspired sweets that honour Annayya's legacy.",
       image: '/telugu_snacks_images/snacks02.jpg',
       actionLabel: 'Build Your Hamper',
-      actionHref: '#',
+      actionHref: '/products?category=hampers',
     },
     {
       title: 'Evening Tiffin Must-Haves',
-      description: 'Pair your filter coffee with our crunchy chekkalu, murukulu, and home-style mixtures.',
+      description:
+        'Pair your filter coffee with our crunchy chekkalu, murukulu, and home-style mixtures.',
       image: '/telugu_snacks_images/snacks03.jpg',
       actionLabel: 'View Snack Shelf',
-      actionHref: '#',
+      actionHref: '/products?category=snacks',
     },
   ],
   testimonial: {
-    quote: `Online Annavaram brings the same warmth we remember from temple streets. Every packet smells of hot ghee, roasted gram, and home kitchens. The flavours hit nostalgic notes from our Andhra childhood.`,
+    quote:
+      'Online Annavaram brings the same warmth we remember from temple streets. Every packet smells of hot ghee, roasted gram, and home kitchens.',
     author: 'Harika',
     role: 'Hyderabad Food Blogger',
   },
@@ -98,7 +102,7 @@ export const SITE_CONTENT = {
     {
       id: 'fresh-shipping',
       title: 'Fresh Dispatch Daily',
-      description: 'Early-morning batches are sealed and shipped the same day across India.',
+      description: 'Early morning batches are sealed and shipped the same day across India.',
       icon: 'truck',
     },
     {
@@ -113,10 +117,10 @@ export const SITE_CONTENT = {
       {
         title: 'Menu',
         links: [
-          { label: 'Home', href: '#' },
-          { label: 'Snacks', href: '#popular' },
-          { label: 'Hampers', href: '#collections' },
-          { label: 'Custom Orders', href: '#footer' },
+          { label: 'Home', to: '/' },
+          { label: 'Shop All', to: '/products' },
+          { label: 'Gift Hampers', to: '/products?category=hampers' },
+          { label: 'Contact', to: '/#footer' },
         ],
       },
       {
@@ -126,20 +130,45 @@ export const SITE_CONTENT = {
       {
         title: 'Support',
         links: [
-          { label: 'WhatsApp Us', href: '#' },
-          { label: 'Shipping FAQs', href: '#' },
+          { label: 'WhatsApp Us', to: '/contact' },
+          { label: 'Shipping FAQs', to: '/faq' },
         ],
       },
       {
         title: 'Follow Us',
         className: 'social-links',
         links: [
-          { label: 'Instagram', href: '#' },
-          { label: 'YouTube', href: '#' },
-          { label: 'Facebook', href: '#' },
+          { label: 'Instagram', href: 'https://instagram.com' },
+          { label: 'YouTube', href: 'https://youtube.com' },
+          { label: 'Facebook', href: 'https://facebook.com' },
         ],
       },
     ],
     copyright: '2025 Online Annavaram. Crafted in Andhra with love.',
   },
-}
+};
+
+export const FALLBACK_PRODUCTS = [
+  {
+    id: 'fallback-1',
+    name: 'Organic Palm Jaggery',
+    slug: 'organic-palm-jaggery',
+    description: 'Traditionally prepared jaggery sourced from Annavaram.',
+    price: 49900,
+    currency: 'INR',
+    stock: 120,
+    category: 'jaggery',
+    images: ['/telugu_snacks_images/snacks01.jpg'],
+  },
+  {
+    id: 'fallback-2',
+    name: 'Cow Ghee 1L',
+    slug: 'cow-ghee-1l',
+    description: 'Rich aromatic ghee sourced from local dairy farms.',
+    price: 89900,
+    currency: 'INR',
+    stock: 80,
+    category: 'ghee',
+    images: ['/telugu_snacks_images/snacks04.jpg'],
+  },
+];
