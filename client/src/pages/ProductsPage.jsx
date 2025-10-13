@@ -6,10 +6,8 @@ import LoadingState from '../components/common/LoadingState';
 import ErrorMessage from '../components/common/ErrorMessage';
 import { getProducts } from '../lib/apiClient';
 import { FALLBACK_PRODUCTS, SITE_CONTENT } from '../config/site';
-import useCart from '../hooks/useCart';
 
 const ProductsPage = () => {
-  const { addItem } = useCart();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -31,6 +29,10 @@ const ProductsPage = () => {
         );
         const items = response?.data ?? response ?? [];
         if (mounted) {
+          console.log('[Products] loaded products', {
+            count: items.length,
+            categoryFilter,
+          });
           setProducts(items);
           setStatus('ready');
         }
@@ -99,12 +101,7 @@ const ProductsPage = () => {
       <section className="section">
         <div className="container">
           {status === 'loading' && <LoadingState label="Loading snacks..." />}
-          {status !== 'loading' && (
-            <ProductGrid
-              products={products}
-              onAddToCart={(product) => addItem(product, 1)}
-            />
-          )}
+          {status !== 'loading' && <ProductGrid products={products} />}
           {status === 'fallback' && (
             <ErrorMessage
               title="Live inventory unavailable"

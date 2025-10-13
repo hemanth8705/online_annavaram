@@ -62,6 +62,7 @@ const ProductDetailPage = () => {
   );
 
   const handleAddToCart = async () => {
+    console.log('[ProductDetail] add to cart clicked', { productId, quantity });
     await addItem(product, quantity);
     navigate('/cart', { state: { from: `/products/${productId}` } });
   };

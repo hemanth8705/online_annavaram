@@ -90,7 +90,7 @@ const CartPage = () => {
                   <span>{formatCurrency(cart.totals.amount)}</span>
                 </div>
                 <Link to="/checkout" className="btn btn-primary cart-summary__checkout">
-                  Proceed to Checkout
+                  Checkout
                 </Link>
               </aside>
             </div>

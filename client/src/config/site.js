@@ -18,6 +18,8 @@ export const SITE_CONTENT = {
       title: 'Crowd Favourite Snacks',
       items: [
         {
+          id: 'kakinada-kaja',
+          slug: 'kakinada-kaja',
           name: 'Kakinada Kaja',
           category: 'Classic Sweets',
           price: 32000,
@@ -25,6 +27,8 @@ export const SITE_CONTENT = {
           actionLabel: 'Add to Cart',
         },
         {
+          id: 'gavvalu-jaggery',
+          slug: 'gavvalu-jaggery',
           name: 'Gavvalu with Jaggery',
           category: 'Festive Nibbles',
           price: 28000,
@@ -32,6 +36,8 @@ export const SITE_CONTENT = {
           actionLabel: 'Add to Cart',
         },
         {
+          id: 'chekkalu-crunch',
+          slug: 'chekkalu-crunch',
           name: 'Chekkalu Crunch',
           category: 'Savory Snacks',
           price: 24000,
@@ -45,13 +51,17 @@ export const SITE_CONTENT = {
       title: "Fresh From Today's Kitchen",
       items: [
         {
+          id: 'madatha-kaja-swirls',
+          slug: 'madatha-kaja-swirls',
           name: 'Madatha Kaja Swirls',
           category: 'Temple Special',
           price: 34000,
           image: '/telugu_snacks_images/snacks08.jpg',
-          actionLabel: 'Reserve Box',
+          actionLabel: 'Add to Cart',
         },
         {
+          id: 'kara-boondi-mix',
+          slug: 'kara-boondi-mix',
           name: 'Kara Boondi Mix',
           category: 'Tea-Time Partner',
           price: 22000,
@@ -59,11 +69,13 @@ export const SITE_CONTENT = {
           actionLabel: 'Add to Cart',
         },
         {
+          id: 'bellam-murukulu',
+          slug: 'bellam-murukulu',
           name: 'Bellam Murukulu',
           category: 'Sweet Crunch',
           price: 26000,
           image: '/telugu_snacks_images/snacks10.jpg',
-          actionLabel: 'Reserve Box',
+          actionLabel: 'Add to Cart',
         },
       ],
     },

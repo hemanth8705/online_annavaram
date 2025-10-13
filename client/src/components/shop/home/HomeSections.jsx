@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { SITE_CONTENT } from '../../../config/site';
-import { formatCurrency } from '../../../lib/formatters';
-import useCart from '../../../hooks/useCart';
+import ProductCard from '../../products/ProductCard';
 
 const useDragScroll = (ref) => {
   useEffect(() => {
@@ -89,25 +88,6 @@ const useDragScroll = (ref) => {
   }, [ref]);
 };
 
-const ProductCard = ({ product }) => {
-  const { addItem } = useCart();
-  const formattedPrice = formatCurrency(product.price);
-
-  return (
-    <div className="product-card">
-      <img src={product.image} alt={product.name} className="product-img" />
-      <div className="product-info">
-        <span className="product-category">{product.category}</span>
-        <h3 className="product-name">{product.name}</h3>
-        <span className="product-price">{formattedPrice}</span>
-        <button type="button" className="btn btn-secondary" onClick={() => addItem(product, 1)}>
-          {product.actionLabel}
-        </button>
-      </div>
-    </div>
-  );
-};
-
 const ProductSlider = ({ section }) => {
   const sliderRef = useRef(null);
   useDragScroll(sliderRef);
@@ -118,7 +98,7 @@ const ProductSlider = ({ section }) => {
         <h2 className="section-title">{section.title}</h2>
         <div className="product-slider" ref={sliderRef} role="list">
           {section.items.map((item) => (
-            <ProductCard key={item.name} product={item} />
+            <ProductCard key={item.id || item.slug || item.name} product={item} />
           ))}
         </div>
       </div>

@@ -24,6 +24,17 @@ function computeTotals(items = []) {
   );
 }
 
+function deriveProductId(product) {
+  if (!product) return null;
+  const rawId =
+    product._id ||
+    product.id ||
+    product.productId ||
+    product.slug ||
+    (product.name ? product.name.toLowerCase().replace(/\s+/g, '-') : null);
+  return rawId ? String(rawId) : null;
+}
+
 function normaliseCart(payload) {
   if (!payload) {
     return { items: [], totals: { quantity: 0, amount: 0 }, status: 'active' };
@@ -46,12 +57,14 @@ function normaliseCart(payload) {
     },
   }));
 
-  return {
+  const normalised = {
     id: base.id,
     status: base.status || 'active',
     items,
     totals: base.totals || computeTotals(items),
   };
+  console.log('[Cart] normalised payload', normalised);
+  return normalised;
 }
 
 function loadLocalCart() {
@@ -85,11 +98,13 @@ export const CartProvider = ({ children }) => {
 
   const hydrateFromBackend = useCallback(async () => {
     if (!userId) {
+      console.log('[Cart] hydrating from local storage (no user id)');
       setUseLocal(true);
       setCart(loadLocalCart());
       return;
     }
 
+    console.log('[Cart] hydrating from backend', { userId });
     setStatus('loading');
     setError(null);
 
@@ -116,17 +131,20 @@ export const CartProvider = ({ children }) => {
       const nextItems = updater(prev.items);
       persistLocalCart(nextItems);
       const totals = computeTotals(nextItems);
-      return { ...prev, items: nextItems, totals };
+      const nextCart = { ...prev, items: nextItems, totals };
+      console.log('[Cart] local cart state updated', nextCart);
+      return nextCart;
     });
   }, []);
 
   const addItem = useCallback(
     async (product, quantity = 1) => {
-      const productId = product?._id || product?.id || product?.productId;
+      const productId = deriveProductId(product);
       if (!productId) {
         throw new Error('Product identifier missing');
       }
 
+      console.log('[Cart] addItem called', { productId, quantity, product, useLocal, userId });
       if (!useLocal && userId) {
         try {
           setStatus('updating');
@@ -144,7 +162,7 @@ export const CartProvider = ({ children }) => {
         }
       }
 
-      applyLocalUpdate((items) => {
+    applyLocalUpdate((items) => {
         const nextItems = [...items];
         const existingIndex = nextItems.findIndex((item) => item.productId === productId);
         if (existingIndex >= 0) {
@@ -161,7 +179,7 @@ export const CartProvider = ({ children }) => {
             unitPrice: product.price,
             subtotal: quantity * (product.price || 0),
             productSnapshot: {
-              images: product.images,
+              images: product.images || (product.image ? [product.image] : []),
               category: product.category,
               slug: product.slug,
               stock: product.stock,
@@ -176,6 +194,7 @@ export const CartProvider = ({ children }) => {
 
   const updateItemQuantity = useCallback(
     async (itemId, quantity) => {
+      console.log('[Cart] updateItemQuantity called', { itemId, quantity, useLocal, userId });
       if (!useLocal && userId) {
         try {
           setStatus('updating');
@@ -201,6 +220,7 @@ export const CartProvider = ({ children }) => {
 
   const removeItem = useCallback(
     async (itemId) => {
+      console.log('[Cart] removeItem called', { itemId, useLocal, userId });
       if (!useLocal && userId) {
         try {
           setStatus('updating');
@@ -221,12 +241,14 @@ export const CartProvider = ({ children }) => {
   );
 
   const clearCart = useCallback(() => {
+    console.log('[Cart] clearCart invoked');
     persistLocalCart([]);
     setCart({ items: [], totals: { quantity: 0, amount: 0 }, status: 'active' });
   }, []);
 
   const placeOrder = useCallback(
     async (payload) => {
+      console.log('[Cart] placeOrder called', { payload, useLocal, userId });
       if (useLocal || !userId) {
         const mockOrder = {
           order: {

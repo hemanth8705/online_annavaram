@@ -1,7 +1,7 @@
 import React from 'react';
 import ProductCard from './ProductCard';
 
-const ProductGrid = ({ products, onAddToCart }) => {
+const ProductGrid = ({ products }) => {
   if (!products?.length) {
     return (
       <div className="empty-state">
@@ -14,7 +14,7 @@ const ProductGrid = ({ products, onAddToCart }) => {
   return (
     <div className="product-grid">
       {products.map((product) => (
-        <ProductCard key={product._id || product.id} product={product} onAddToCart={onAddToCart} />
+        <ProductCard key={product._id || product.id || product.slug || product.name} product={product} />
       ))}
     </div>
   );

@@ -482,6 +482,17 @@ a:hover {
   margin-top: auto;
 }
 
+.product-card__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.product-card__controls .quantity-input {
+  align-self: flex-start;
+}
+
 .loading-state,
 .error-state,
 .empty-state {
