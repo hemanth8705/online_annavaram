@@ -1,4 +1,4 @@
-# online_annavaram
+﻿# online_annavaram
 
 OCT 8: Repo creation
 
@@ -26,3 +26,9 @@ OCT 12: Frontend multi-page flow completed
 - Introduced React Router pages for products, product detail, cart, checkout, and order status
 - Added cart context with backend integration and local fallback
 - Updated global styling and docs to reflect new routes and environment options
+
+OCT 13: Email OTP authentication added
+- Integrated SMTP mailer with reusable service and env-driven configuration
+- Added frontend auth context and signup/login/verify pages integrated with backend OTP flow
+- Implemented signup, login, OTP resend, and email verification endpoints with rate limiting
+- Extended schema docs and README; seed data now includes hashed demo passwords

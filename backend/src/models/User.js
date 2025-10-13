@@ -36,6 +36,20 @@ const userSchema = new Schema(
     },
     addresses: { type: [addressSchema], default: [] },
     isActive: { type: Boolean, default: true },
+    emailVerified: { type: Boolean, default: false },
+    emailVerifiedAt: { type: Date },
+    emailVerification: {
+      type: new Schema(
+        {
+          otpHash: String,
+          otpExpiresAt: Date,
+          attempts: { type: Number, default: 0 },
+          sentHistory: { type: [Date], default: [] },
+        },
+        { _id: false }
+      ),
+      default: () => ({ attempts: 0, sentHistory: [] }),
+    },
   },
   { timestamps: true }
 );

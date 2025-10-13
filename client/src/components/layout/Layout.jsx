@@ -2,11 +2,13 @@ import React, { useMemo } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { SITE_CONTENT } from '../../config/site';
 import useCart from '../../hooks/useCart';
+import useAuth from '../../hooks/useAuth';
 
 const Layout = ({ children }) => {
   const { brand, navLinks, footer } = SITE_CONTENT;
   const location = useLocation();
   const { cart } = useCart();
+  const { user, logout } = useAuth();
 
   const activeNavLinks = useMemo(
     () =>
@@ -22,7 +24,6 @@ const Layout = ({ children }) => {
   );
 
   const totalQuantity = cart?.totals?.quantity ?? 0;
-
   const content = children ?? <Outlet />;
 
   return (
@@ -47,17 +48,36 @@ const Layout = ({ children }) => {
               ))}
             </ul>
           </nav>
-          <Link
-            to="/cart"
-            className="cart-chip"
-            aria-label={`Cart with ${totalQuantity} items`}
-            state={{ from: location.pathname }}
-          >
-            <span className="cart-chip__icon" aria-hidden="true">
-              🛒
-            </span>
-            <span className="cart-chip__count">{totalQuantity}</span>
-          </Link>
+          <div className="header-actions">
+            {user ? (
+              <div className="user-chip">
+                <span>{user.fullName?.split(' ')[0] || 'Customer'}</span>
+                <button type="button" onClick={logout}>
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link to="/auth/login" className="btn-link" state={{ from: location.pathname }}>
+                  Login
+                </Link>
+                <Link to="/auth/signup" className="btn btn-primary">
+                  Sign Up
+                </Link>
+              </>
+            )}
+            <Link
+              to="/cart"
+              className="cart-chip"
+              aria-label={`Cart with ${totalQuantity} items`}
+              state={{ from: location.pathname }}
+            >
+              <span className="cart-chip__icon" aria-hidden="true">
+                🛒
+              </span>
+              <span className="cart-chip__count">{totalQuantity}</span>
+            </Link>
+          </div>
         </div>
       </header>
       <main>{content}</main>

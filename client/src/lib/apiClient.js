@@ -86,3 +86,19 @@ export function createOrder(userId, payload, options = {}) {
 export function listOrders(userId, options = {}) {
   return request('/orders', { userId, ...options });
 }
+
+export function signup(payload, options = {}) {
+  return request('/auth/signup', { method: 'POST', data: payload, ...options });
+}
+
+export function verifyEmail(payload, options = {}) {
+  return request('/auth/verify-email', { method: 'POST', data: payload, ...options });
+}
+
+export function resendOtp(payload, options = {}) {
+  return request('/auth/resend-otp', { method: 'POST', data: payload, ...options });
+}
+
+export function login(payload, options = {}) {
+  return request('/auth/login', { method: 'POST', data: payload, ...options });
+}

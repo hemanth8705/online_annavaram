@@ -6,6 +6,7 @@ import {
   getCart,
   updateCartItem,
 } from '../lib/apiClient';
+import useAuth from '../hooks/useAuth';
 
 const CartContext = createContext(undefined);
 
@@ -90,7 +91,8 @@ function persistLocalCart(items) {
 }
 
 export const CartProvider = ({ children }) => {
-  const userId = import.meta.env.VITE_DEMO_USER_ID || null;
+  const { user } = useAuth();
+  const userId = user?.id || user?._id || null;
   const [cart, setCart] = useState({ items: [], totals: { quantity: 0, amount: 0 }, status: 'active' });
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
@@ -101,6 +103,7 @@ export const CartProvider = ({ children }) => {
       console.log('[Cart] hydrating from local storage (no user id)');
       setUseLocal(true);
       setCart(loadLocalCart());
+      setStatus('ready');
       return;
     }
 
@@ -123,8 +126,17 @@ export const CartProvider = ({ children }) => {
   }, [userId]);
 
   useEffect(() => {
-    hydrateFromBackend();
-  }, [hydrateFromBackend]);
+    if (userId) {
+      setUseLocal(false);
+      setError(null);
+      hydrateFromBackend();
+    } else {
+      setUseLocal(true);
+      setCart(loadLocalCart());
+      setStatus('ready');
+      setError(null);
+    }
+  }, [userId, hydrateFromBackend]);
 
   const applyLocalUpdate = useCallback((updater) => {
     setCart((prev) => {
@@ -162,7 +174,7 @@ export const CartProvider = ({ children }) => {
         }
       }
 
-    applyLocalUpdate((items) => {
+      applyLocalUpdate((items) => {
         const nextItems = [...items];
         const existingIndex = nextItems.findIndex((item) => item.productId === productId);
         if (existingIndex >= 0) {

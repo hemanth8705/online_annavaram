@@ -25,6 +25,9 @@
 | `role` | String | Yes | `"customer"` | Enum: `customer`, `admin` |
 | `addresses` | [Subdoc] | No | `[]` | Shipping addresses |
 | `isActive` | Boolean | Yes | `true` | Soft deactivate flag |
+| `emailVerified` | Boolean | Yes | `false` | Set `true` after OTP verification |
+| `emailVerifiedAt` | Date | No | — | Timestamp of successful verification |
+| `emailVerification` | Subdoc | No | `{ attempts: 0, sentHistory: [] }` | Stores OTP hash, expiry, attempts, send history |
 | `createdAt` | Date | Yes | Now | Timestamp |
 | `updatedAt` | Date | Yes | Now | Timestamp |
 
@@ -36,6 +39,12 @@ Address subdocument:
 - `state` (String, required)
 - `postalCode` (String, required)
 - `country` (String, required, default `IN`)
+
+Email verification subdocument:
+- `otpHash` (String, hashed OTP)
+- `otpExpiresAt` (Date, expiry timestamp)
+- `attempts` (Number, increments on failed verify)
+- `sentHistory` (Array\<Date\>, timestamps of OTP sends for rate limiting)
 
 ### Products
 | Field | Type | Required | Default | Notes |

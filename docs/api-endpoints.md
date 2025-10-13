@@ -1,4 +1,4 @@
-# API Endpoints — Online Annavaram
+﻿# API Endpoints - Online Annavaram
 
 Base URL: `/api`
 
@@ -8,6 +8,38 @@ Standard Error Shape:
 ```json
 { "success": false, "message": "Explanation", "details": { "field": "reason" } }
 ```
+
+## Authentication
+
+### `POST /auth/signup`
+- Description: Create an account and trigger an email OTP.
+- Body:
+```json
+{ "fullName": "Sita Lakshmi", "email": "sita@example.com", "password": "passw0rd!", "phone": "9999999901" }
+```
+- Response `201`: `{ "success": true, "message": "Signup successful. Please verify..." }`
+
+### `POST /auth/verify-email`
+- Description: Verify the OTP sent to the user's email.
+- Body:
+```json
+{ "email": "sita@example.com", "otp": "123456" }
+```
+- Response `200`: `{ "success": true, "message": "Email verified successfully." }`
+
+### `POST /auth/resend-otp`
+- Description: Request another OTP (max 3 sends per 24 hours).
+- Body: `{ "email": "sita@example.com" }`
+- Response `200`: `{ "success": true, "message": "A new OTP has been sent..." }`
+
+### `POST /auth/login`
+- Description: Password login (requires verified email).
+- Body:
+```json
+{ "email": "sita@example.com", "password": "passw0rd!" }
+```
+- Response `200`: `{ "success": true, "data": { "user": { "id": "...", "fullName": "...", "email": "..." } } }`
+- Errors: `403` if email not verified, `401` for invalid credentials.
 
 ## Products
 
@@ -160,5 +192,5 @@ Standard Error Shape:
 - Response `200`: `{ "message": "Test endpoint is working", "database": "connected", "timestamp": "..." }`
 
 ## Local Testing Helpers
-- `npm run seed` — resets database with demo data.
-- `npm run test:api` — runs scripted smoke tests covering product, cart, order, and admin flows.
+- `npm run seed` â€” resets database with demo data.
+- `npm run test:api` â€” runs scripted smoke tests covering product, cart, order, and admin flows.

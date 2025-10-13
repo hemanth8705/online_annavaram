@@ -1,6 +1,5 @@
-# online_annavaram
-
-Andhra Pradesh-style foods website. Built step-by-step, referencing `MERN_Stack_Project_Ecommerce_Hayroo` only for layout ideas. This repo is independent.
+﻿# online_annavaram
+- Integrate order/contact flows suitable for Andhra foods.
 
 ## Homepage (Andhra Foods)
 - Slider showcases signature snacks (replace images under `public/telugu_snacks_images`).
@@ -12,12 +11,13 @@ Config: `online_annavaram/client/src/config/site.js`
 - `FALLBACK_PRODUCTS` powers the UI when the API is offline.
 
 ### Frontend Routes
-- `/` — Home hero + curated sections.
-- `/products` — Catalogue with category filtering.
-- `/products/:id` — Product detail with quantity control.
-- `/cart` — Review, edit, and remove cart items.
-- `/checkout` — Shipping form + order summary.
-- `/order/success` & `/order/failure` — Payment result views.
+- `/` – Home hero + curated sections.
+- `/products` – Catalogue with category filtering.
+- `/products/:id` – Product detail with quantity control.
+- `/cart` – Review, edit, and remove cart items.
+- `/checkout` – Shipping form + order summary.
+- `/order/success` & `/order/failure` – Payment result views.
+- `/auth/signup`, `/auth/verify`, `/auth/login` – Email OTP signup and login flow.
 
 ## Prerequisites
 - Node.js 18+ and npm
@@ -33,10 +33,8 @@ Open the URL printed by Vite (typically `http://localhost:5173`).
 Optional environment overrides: `online_annavaram/client/.env`
 ```
 VITE_API_BASE_URL=http://localhost:4000/api
-# Map to a real MongoDB user id for backend-powered cart/orders.
-VITE_DEMO_USER_ID=<paste-seeded-user-id>
 ```
-If `VITE_DEMO_USER_ID` is omitted or the API is unreachable, the cart falls back to local storage.
+Cart operations fall back to local storage automatically when no user is logged in.
 
 ### Build (Prod)
 ```bash
@@ -55,6 +53,8 @@ Config: `online_annavaram/backend/.env`
 Example values in `.env.example`. Set:
 - `PORT` (defaults to `4000`)
 - `MONGODB_URI` (MongoDB connection string; leave empty to use the in-memory dev database)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (SMTP credentials for emailing OTPs and notifications)
+- Optional overrides: `OTP_EXPIRY_MINUTES`, `OTP_MAX_ATTEMPTS`, `OTP_MAX_PER_DAY`
 
 Run (Dev):
 ```bash
@@ -64,8 +64,15 @@ npm run dev
 The server listens on `http://localhost:4000` (or your configured port).
 
 Quick checks:
-- `GET /` → health check (`{"message":"Server running"}`)
-- `GET /api/test` → verifies API wiring and database status
+- `GET /` -> health check (`{"message":"Server running"}`)
+- `GET /api/test` -> verifies API wiring and database status
+### Authentication (Email OTP)
+- `POST /api/auth/signup` creates a user, hashes the password, and emails a 6-digit OTP via SMTP.
+- OTP requests are rate-limited to 3 per email per rolling 24 hours.
+- `POST /api/auth/verify-email` verifies the OTP and marks `emailVerified = true`.
+- `POST /api/auth/login` requires a verified email and returns user details (without sending another OTP).
+- `POST /api/auth/resend-otp` is available for unverified accounts within rate limits.
+- Configure SMTP credentials before testing; see `docs/api-endpoints.md` for payloads.
 
 Full endpoint reference: `docs/api-endpoints.md`.  
 Schema reference: `docs/schema.md`.

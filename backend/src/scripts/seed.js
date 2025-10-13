@@ -1,5 +1,6 @@
 const path = require('path');
 const dotenv = require('dotenv');
+const bcrypt = require('bcryptjs');
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -28,19 +29,23 @@ async function clearCollections() {
 }
 
 async function seedData() {
+  const passwordHash = await bcrypt.hash('demo-password', 10);
+
   const [adminUser, customerUser] = await User.create([
     {
       fullName: 'Online Annavaram Admin',
       email: 'admin@onlineannavaram.test',
-      passwordHash: 'hashed-password-placeholder',
+      passwordHash,
       role: 'admin',
       phone: '9999999900',
       addresses: [],
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
     },
     {
       fullName: 'Sita Lakshmi',
       email: 'sita@example.com',
-      passwordHash: 'hashed-password-placeholder',
+      passwordHash,
       phone: '9999999901',
       addresses: [
         {
@@ -53,6 +58,8 @@ async function seedData() {
           country: 'IN',
         },
       ],
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
     },
   ]);
 
