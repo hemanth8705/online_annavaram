@@ -11,6 +11,8 @@ import {
   verifyEmail as verifyEmailRequest,
   resendOtp as resendOtpRequest,
   login as loginRequest,
+  requestPasswordReset as requestPasswordResetRequest,
+  resetPassword as resetPasswordRequest,
 } from '../lib/apiClient';
 
 const AuthContext = createContext(undefined);
@@ -129,6 +131,41 @@ export const AuthProvider = ({ children }) => {
     [persistUser]
   );
 
+  const requestPasswordReset = useCallback(
+    async (payload) => {
+      setAuthStatus('forgot');
+      setAuthError?.(null);
+      try {
+        const response = await requestPasswordResetRequest(payload);
+        setPendingEmail(payload.email.toLowerCase());
+        setAuthStatus('idle');
+        return response;
+      } catch (error) {
+        setAuthStatus('idle');
+        setAuthError(error.message || 'Unable to send reset code');
+        throw error;
+      }
+    },
+    []
+  );
+
+  const resetPassword = useCallback(
+    async (payload) => {
+      setAuthStatus('reset');
+      setAuthError?.(null);
+      try {
+        const response = await resetPasswordRequest(payload);
+        setAuthStatus('idle');
+        return response;
+      } catch (error) {
+        setAuthStatus('idle');
+        setAuthError(error.message || 'Reset failed');
+        throw error;
+      }
+    },
+    []
+  );
+
   const logout = useCallback(() => {
     setUser(null);
     setPendingEmail(null);
@@ -145,6 +182,8 @@ export const AuthProvider = ({ children }) => {
       verifyEmail,
       resendOtp,
       login,
+      requestPasswordReset,
+      resetPassword,
       logout,
       setAuthError,
       setPendingEmail,
@@ -156,6 +195,8 @@ export const AuthProvider = ({ children }) => {
       logout,
       pendingEmail,
       resendOtp,
+      requestPasswordReset,
+      resetPassword,
       signup,
       user,
       verifyEmail,

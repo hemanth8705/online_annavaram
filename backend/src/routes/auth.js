@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const authController = require('../controllers/authController');
 const asyncHandler = require('../middlewares/asyncHandler');
 const { validateRequest, buildBodyValidator } = require('../middlewares/validateRequest');
@@ -71,6 +71,27 @@ const resendValidator = buildBodyValidator({
   },
 });
 
+const resetValidator = buildBodyValidator({
+  email: {
+    required: true,
+    type: 'string',
+    transform: (v) => String(v).trim().toLowerCase(),
+    validate: emailValidator,
+  },
+  otp: {
+    required: true,
+    type: 'string',
+    transform: (v) => String(v).trim(),
+  },
+  newPassword: {
+    required: true,
+    type: 'string',
+    transform: (v) => String(v),
+    validate: (value) =>
+      value.length >= 8 ? null : 'Password must be at least 8 characters',
+  },
+});
+
 router.post(
   '/signup',
   validateRequest(signupValidator),
@@ -93,6 +114,18 @@ router.post(
   '/resend-otp',
   validateRequest(resendValidator),
   asyncHandler(authController.resendOtp)
+);
+
+router.post(
+  '/forgot-password',
+  validateRequest(resendValidator),
+  asyncHandler(authController.requestPasswordReset)
+);
+
+router.post(
+  '/reset-password',
+  validateRequest(resetValidator),
+  asyncHandler(authController.resetPassword)
 );
 
 module.exports = router;

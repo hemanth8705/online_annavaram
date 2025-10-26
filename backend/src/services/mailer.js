@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+﻿const nodemailer = require('nodemailer');
 
 let transporterPromise;
 
@@ -12,9 +12,9 @@ function resolveTransporter() {
       SMTP_PASS,
     } = process.env;
 
-      if (!SMTP_HOST || !SMTP_PORT) {
-        throw new Error('SMTP configuration is incomplete. Please set SMTP_HOST and SMTP_PORT.');
-      }
+    if (!SMTP_HOST || !SMTP_PORT) {
+      throw new Error('SMTP configuration is incomplete. Please set SMTP_HOST and SMTP_PORT.');
+    }
 
     transporterPromise = nodemailer.createTransport({
       host: SMTP_HOST,
@@ -57,7 +57,19 @@ async function sendOtpEmail({ to, otp, expiresMinutes = 10 }) {
   <p>Your verification code is <strong style="font-size:18px;">${otp}</strong>.</p>
   <p>The code will expire in ${expiresMinutes} minutes.</p>
   <p>If you didn't request this code, please ignore this email.</p>
-  <p>— Online Annavaram</p>`;
+  <p>&mdash; Online Annavaram</p>`;
+
+  return sendMail({ to, subject, text, html });
+}
+
+async function sendPasswordResetEmail({ to, otp, expiresMinutes = 10 }) {
+  const subject = 'Reset your Online Annavaram password';
+  const text = `Use this code to reset your password: ${otp}. It expires in ${expiresMinutes} minutes.`;
+  const html = `<p>Namaste!</p>
+  <p>Your password reset code is <strong style="font-size:18px;">${otp}</strong>.</p>
+  <p>The code will expire in ${expiresMinutes} minutes.</p>
+  <p>If you didn't request a reset, you can safely ignore this message.</p>
+  <p>&mdash; Online Annavaram</p>`;
 
   return sendMail({ to, subject, text, html });
 }
@@ -65,4 +77,5 @@ async function sendOtpEmail({ to, otp, expiresMinutes = 10 }) {
 module.exports = {
   sendMail,
   sendOtpEmail,
+  sendPasswordResetEmail,
 };

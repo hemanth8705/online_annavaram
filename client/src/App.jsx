@@ -10,6 +10,8 @@ import OrderFailurePage from './pages/OrderFailurePage';
 import AuthSignupPage from './pages/AuthSignupPage';
 import AuthLoginPage from './pages/AuthLoginPage';
 import AuthVerifyEmailPage from './pages/AuthVerifyEmailPage';
+import AuthForgotPasswordPage from './pages/AuthForgotPasswordPage';
+import AuthResetPasswordPage from './pages/AuthResetPasswordPage';
 
 const App = () => (
   <Routes>
@@ -23,6 +25,8 @@ const App = () => (
     <Route path="/auth/signup" element={<AuthSignupPage />} />
     <Route path="/auth/login" element={<AuthLoginPage />} />
     <Route path="/auth/verify" element={<AuthVerifyEmailPage />} />
+    <Route path="/auth/forgot-password" element={<AuthForgotPasswordPage />} />
+    <Route path="/auth/reset-password" element={<AuthResetPasswordPage />} />
   </Routes>
 );
 

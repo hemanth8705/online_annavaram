@@ -50,6 +50,18 @@ const userSchema = new Schema(
       ),
       default: () => ({ attempts: 0, sentHistory: [] }),
     },
+    passwordReset: {
+      type: new Schema(
+        {
+          otpHash: String,
+          otpExpiresAt: Date,
+          attempts: { type: Number, default: 0 },
+          sentHistory: { type: [Date], default: [] },
+        },
+        { _id: false }
+      ),
+      default: () => ({ attempts: 0, sentHistory: [] }),
+    },
   },
   { timestamps: true }
 );

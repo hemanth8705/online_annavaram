@@ -28,6 +28,7 @@
 | `emailVerified` | Boolean | Yes | `false` | Set `true` after OTP verification |
 | `emailVerifiedAt` | Date | No | — | Timestamp of successful verification |
 | `emailVerification` | Subdoc | No | `{ attempts: 0, sentHistory: [] }` | Stores OTP hash, expiry, attempts, send history |
+| `passwordReset` | Subdoc | No | `{ attempts: 0, sentHistory: [] }` | Stores password reset OTP details |
 | `createdAt` | Date | Yes | Now | Timestamp |
 | `updatedAt` | Date | Yes | Now | Timestamp |
 

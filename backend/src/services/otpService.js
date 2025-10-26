@@ -1,9 +1,25 @@
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES || 10);
 const OTP_MAX_ATTEMPTS = Number(process.env.OTP_MAX_ATTEMPTS || 5);
 const OTP_MAX_PER_DAY = Number(process.env.OTP_MAX_PER_DAY || 3);
+
+const SUPPORTED_BUCKETS = ['emailVerification', 'passwordReset'];
+
+function ensureBucket(user, bucketKey) {
+  if (!SUPPORTED_BUCKETS.includes(bucketKey)) {
+    throw new Error(`Unsupported OTP bucket: ${bucketKey}`);
+  }
+  if (!user[bucketKey] || mongoose.isObjectIdOrHexString(user[bucketKey])) {
+    user[bucketKey] = { attempts: 0, sentHistory: [] };
+  } else {
+    user[bucketKey].attempts = user[bucketKey].attempts || 0;
+    user[bucketKey].sentHistory = user[bucketKey].sentHistory || [];
+  }
+  return user[bucketKey];
+}
 
 function generateOtp() {
   const min = 10 ** (OTP_LENGTH - 1);
@@ -16,73 +32,73 @@ function purgeHistory(history = []) {
   return history.filter((timestamp) => new Date(timestamp).getTime() > cutoff);
 }
 
-async function assignOtpToUser(user) {
-  const otp = generateOtp();
-  const otpHash = await bcrypt.hash(otp, 10);
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + OTP_EXPIRY_MINUTES * 60 * 1000);
+async function assignOtp(user, bucketKey = 'emailVerification') {
+  const bucket = ensureBucket(user, bucketKey);
 
-  const history = purgeHistory(user.emailVerification?.sentHistory || []);
+  const history = purgeHistory(bucket.sentHistory);
   if (history.length >= OTP_MAX_PER_DAY) {
     const error = new Error('OTP request limit reached. Try again later.');
     error.status = 429;
     throw error;
   }
 
-  const updatedHistory = [...history, now];
+  const otp = generateOtp();
+  const otpHash = await bcrypt.hash(otp, 10);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-  user.emailVerification = {
-    otpHash,
-    otpExpiresAt: expiresAt,
-    attempts: 0,
-    sentHistory: updatedHistory,
-  };
+  bucket.otpHash = otpHash;
+  bucket.otpExpiresAt = expiresAt;
+  bucket.attempts = 0;
+  bucket.sentHistory = [...history, now];
 
   return { otp, expiresAt };
 }
 
-async function verifyUserOtp(user, otp) {
-  if (!user.emailVerification?.otpHash) {
+async function verifyOtp(user, bucketKey, otp) {
+  const bucket = ensureBucket(user, bucketKey);
+
+  if (!bucket.otpHash) {
     const error = new Error('No OTP request found. Please request a new code.');
     error.status = 400;
     throw error;
   }
 
-  const { otpHash, otpExpiresAt, attempts = 0 } = user.emailVerification;
-  if (attempts >= OTP_MAX_ATTEMPTS) {
-    const error = new Error('Maximum OTP attempts exceeded. Request a new code.');
+  if (bucket.attempts >= OTP_MAX_ATTEMPTS) {
+    const error = new Error(
+      'Maximum OTP attempts exceeded. Request a new code.'
+    );
     error.status = 429;
     throw error;
   }
 
-  if (!otpExpiresAt || new Date(otpExpiresAt).getTime() < Date.now()) {
+  if (!bucket.otpExpiresAt || new Date(bucket.otpExpiresAt).getTime() < Date.now()) {
     const error = new Error('OTP has expired. Request a new code.');
     error.status = 400;
     throw error;
   }
 
-  const matches = await bcrypt.compare(otp, otpHash);
+  const matches = await bcrypt.compare(otp, bucket.otpHash);
   if (!matches) {
-    user.emailVerification.attempts = attempts + 1;
+    bucket.attempts += 1;
     await user.save();
     const error = new Error('Invalid OTP. Please try again.');
     error.status = 400;
     throw error;
   }
 
-  // successful verification
-  user.emailVerified = true;
-  user.emailVerifiedAt = new Date();
-  user.emailVerification = {
-    otpHash: undefined,
-    otpExpiresAt: undefined,
-    attempts: 0,
-    sentHistory: purgeHistory(user.emailVerification.sentHistory),
-  };
+  bucket.otpHash = undefined;
+  bucket.otpExpiresAt = undefined;
+  bucket.attempts = 0;
+  bucket.sentHistory = purgeHistory(bucket.sentHistory);
+
+  return true;
 }
 
 module.exports = {
-  assignOtpToUser,
-  verifyUserOtp,
+  assignOtp,
+  verifyOtp,
   OTP_EXPIRY_MINUTES,
+  OTP_MAX_ATTEMPTS,
+  OTP_MAX_PER_DAY,
 };

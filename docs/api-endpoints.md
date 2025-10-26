@@ -41,6 +41,33 @@ Standard Error Shape:
 - Response `200`: `{ "success": true, "data": { "user": { "id": "...", "fullName": "...", "email": "..." } } }`
 - Errors: `403` if email not verified, `401` for invalid credentials.
 
+### `POST /auth/forgot-password`
+- Description: Send a password reset OTP to a verified email.
+- Body: `{ "email": "sita@example.com" }`
+- Response `200`: `{ "success": true, "message": "If an account exists, a password reset code has been sent." }`
+
+### `POST /auth/reset-password`
+- Description: Verify OTP and set a new password.
+- Body:
+```json
+{ "email": "sita@example.com", "otp": "654321", "newPassword": "NewPass123!" }
+```
+- Response `200`: `{ "success": true, "message": "Password updated successfully." }`
+
+### `POST /payments/razorpay/verify`
+- Description: Confirm a Razorpay payment and mark the order as paid.
+- Headers: `x-user-id` of the logged-in customer.
+- Body:
+```json
+{
+  "orderId": "<mongo order id>",
+  "razorpayOrderId": "order_ABC123",
+  "razorpayPaymentId": "pay_DEF456",
+  "razorpaySignature": "<signature>"
+}
+```
+- Response `200`: `{ "success": true, "data": { "order": { ... }, "payment": { ... } } }`
+
 ## Products
 
 ### `GET /products`
@@ -165,7 +192,8 @@ Standard Error Shape:
   "data": {
     "order": { "_id": "...", "status": "pending_payment", ... },
     "items": [ { "productName": "...", "quantity": 3, "subtotal": 149700 }, ... ],
-    "payment": { "_id": "...", "gateway": "manual", "status": "initiated" }
+    "payment": { "_id": "...", "gateway": "razorpay", "status": "initiated" },
+    "razorpay": { "orderId": "order_ABC123", "amount": 189700, "currency": "INR", "keyId": "rzp_test_xxx" }
   }
 }
 ```

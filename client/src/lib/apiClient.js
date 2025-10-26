@@ -102,3 +102,15 @@ export function resendOtp(payload, options = {}) {
 export function login(payload, options = {}) {
   return request('/auth/login', { method: 'POST', data: payload, ...options });
 }
+
+export function requestPasswordReset(payload, options = {}) {
+  return request('/auth/forgot-password', { method: 'POST', data: payload, ...options });
+}
+
+export function resetPassword(payload, options = {}) {
+  return request('/auth/reset-password', { method: 'POST', data: payload, ...options });
+}
+
+export function verifyRazorpayPayment(userId, payload, options = {}) {
+  return request('/payments/razorpay/verify', { method: 'POST', data: payload, userId, ...options });
+}

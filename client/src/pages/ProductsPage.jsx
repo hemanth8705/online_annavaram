@@ -5,7 +5,7 @@ import ProductGrid from '../components/products/ProductGrid';
 import LoadingState from '../components/common/LoadingState';
 import ErrorMessage from '../components/common/ErrorMessage';
 import { getProducts } from '../lib/apiClient';
-import { FALLBACK_PRODUCTS, SITE_CONTENT } from '../config/site';
+import { SITE_CONTENT } from '../config/site';
 
 const ProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,12 +37,12 @@ const ProductsPage = () => {
           setStatus('ready');
         }
       } catch (err) {
-        console.warn('Falling back to static products', err);
         if (!mounted || abortController.signal.aborted) {
           return;
         }
-        setProducts(FALLBACK_PRODUCTS);
-        setStatus('fallback');
+        console.error('[Products] failed to load', err);
+        setProducts([]);
+        setStatus('error');
         setError(err);
       }
     }
@@ -101,11 +101,17 @@ const ProductsPage = () => {
       <section className="section">
         <div className="container">
           {status === 'loading' && <LoadingState label="Loading snacks..." />}
-          {status !== 'loading' && <ProductGrid products={products} />}
-          {status === 'fallback' && (
+          {status === 'ready' && products.length > 0 && <ProductGrid products={products} />}
+          {status === 'ready' && products.length === 0 && (
             <ErrorMessage
-              title="Live inventory unavailable"
-              message="Showing handcrafted highlights while we reconnect to the kitchen."
+              title="No products available"
+              message="We couldn't find any products for this category."
+            />
+          )}
+          {status === 'error' && (
+            <ErrorMessage
+              title="Unable to load products"
+              message={error?.message || 'Please try again later.'}
             />
           )}
         </div>

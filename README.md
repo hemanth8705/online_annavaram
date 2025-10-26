@@ -54,6 +54,7 @@ Example values in `.env.example`. Set:
 - `PORT` (defaults to `4000`)
 - `MONGODB_URI` (MongoDB connection string; leave empty to use the in-memory dev database)
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (SMTP credentials for emailing OTPs and notifications)
+- `RAZORPAY_KEY_ID`, `RAZORPAY_SECRET` (Razorpay API credentials for online payments)
 - Optional overrides: `OTP_EXPIRY_MINUTES`, `OTP_MAX_ATTEMPTS`, `OTP_MAX_PER_DAY`
 
 Run (Dev):
@@ -73,6 +74,11 @@ Quick checks:
 - `POST /api/auth/login` requires a verified email and returns user details (without sending another OTP).
 - `POST /api/auth/resend-otp` is available for unverified accounts within rate limits.
 - Configure SMTP credentials before testing; see `docs/api-endpoints.md` for payloads.
+
+### Payments (Razorpay)
+- `POST /api/orders` now returns a Razorpay order payload when gateway credentials are configured.
+- Frontend opens Razorpay Checkout; on success it calls `POST /api/payments/razorpay/verify` to capture the payment.
+- Orders remain in `pending_payment` until verification succeeds, after which they are marked `paid` in MongoDB.
 
 Full endpoint reference: `docs/api-endpoints.md`.  
 Schema reference: `docs/schema.md`.

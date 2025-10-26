@@ -32,3 +32,7 @@ OCT 13: Email OTP authentication added
 - Added frontend auth context and signup/login/verify pages integrated with backend OTP flow
 - Implemented signup, login, OTP resend, and email verification endpoints with rate limiting
 - Extended schema docs and README; seed data now includes hashed demo passwords
+
+OCT 13: Razorpay payments enabled
+- Integrated Razorpay checkout on backend (order creation, payment verification)
+- Frontend checkout now opens Razorpay modal and confirms payment before success page

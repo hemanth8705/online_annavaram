@@ -1,0 +1,3 @@
+1. when choosing the forgot pass word , if the email entered by user is not an existing customer then say that , this email is not registered with us , please sign Up
+2. while forgot pass word , after sending the Otp we are asking the user to enter the otp and reset the pass word in same page , its a quite disturbing in UI plase make it into two steo pages
+3. after login , sign up or reset pas word , again prompt ing to enter the detaisl to login , we should automatically login

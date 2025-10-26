@@ -13,6 +13,7 @@ const {
   clearCart,
   verifyStockLevels,
 } = require('../services/cartService');
+const paymentService = require('../services/paymentService');
 
 exports.createOrder = async (req, res) => {
   const { shippingAddress, notes } = req.body;
@@ -34,7 +35,7 @@ exports.createOrder = async (req, res) => {
     cart: cart._id,
     totalAmount,
     currency: 'INR',
-    status: 'pending_payment',
+    status: paymentService.isConfigured() ? 'pending_payment' : 'paid',
     shippingAddress,
     paymentIntentId: null,
     notes,
@@ -57,14 +58,38 @@ exports.createOrder = async (req, res) => {
     });
   }
 
+  let razorpayOrder = null;
+
+  if (paymentService.isConfigured()) {
+    try {
+      razorpayOrder = await paymentService.createRazorpayOrder({
+        amount: totalAmount,
+        currency: 'INR',
+        receipt: order._id.toString(),
+        notes: {
+          userId: req.user._id.toString(),
+        },
+      });
+      order.paymentIntentId = razorpayOrder.id;
+      await order.save();
+    } catch (err) {
+      console.error('Failed to create Razorpay order', err);
+      await Order.deleteOne({ _id: order._id });
+      await OrderItem.deleteMany({ order: order._id });
+      const error = new Error('Unable to initiate payment. Please try again later.');
+      error.status = 502;
+      throw error;
+    }
+  }
+
   const payment = await Payment.create({
     order: order._id,
-    gateway: 'manual',
+    gateway: paymentService.isConfigured() ? 'razorpay' : 'manual',
     amount: totalAmount,
     currency: 'INR',
-    status: 'initiated',
-    transactionId: null,
-    rawResponse: null,
+    status: paymentService.isConfigured() ? 'initiated' : 'captured',
+    transactionId: paymentService.isConfigured() ? null : 'offline',
+    rawResponse: razorpayOrder,
   });
 
   await clearCart(cart._id);
@@ -79,6 +104,16 @@ exports.createOrder = async (req, res) => {
       order: populated,
       items: orderItemsData,
       payment,
+      razorpay: razorpayOrder
+        ? {
+            orderId: razorpayOrder.id,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency,
+            keyId: process.env.RAZORPAY_KEY_ID,
+            name: 'Online Annavaram',
+            description: `Temple pantry order ${populated._id}`,
+          }
+        : null,
     },
   });
 };

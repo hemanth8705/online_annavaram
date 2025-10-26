@@ -59,6 +59,11 @@ const AuthLoginPage = () => {
                 placeholder="Enter your password"
               />
             </div>
+            <p className="auth-footer-text" style={{ textAlign: 'right', marginTop: '-0.25rem' }}>
+              <Link to="/auth/forgot-password" className="text-link">
+                Forgot password?
+              </Link>
+            </p>
             {authError && <p className="form-error">{authError}</p>}
             {message && <p className="form-success">{message}</p>}
             <button

@@ -5,6 +5,7 @@ import {
   deleteCartItem,
   getCart,
   updateCartItem,
+  verifyRazorpayPayment,
 } from '../lib/apiClient';
 import useAuth from '../hooks/useAuth';
 
@@ -286,6 +287,27 @@ export const CartProvider = ({ children }) => {
     [cart.items, cart.totals.amount, clearCart, useLocal, userId]
   );
 
+  const confirmPayment = useCallback(
+    async (payload) => {
+      if (useLocal || !userId) {
+        throw new Error('Unable to confirm payment in offline mode.');
+      }
+      try {
+        setStatus('updating');
+        setError(null);
+        const response = await verifyRazorpayPayment(userId, payload);
+        setStatus('ready');
+        await hydrateFromBackend();
+        return response.data;
+      } catch (err) {
+        setStatus('ready');
+        setError(err);
+        throw err;
+      }
+    },
+    [hydrateFromBackend, useLocal, userId]
+  );
+
   const value = useMemo(
     () => ({
       cart,
@@ -297,9 +319,10 @@ export const CartProvider = ({ children }) => {
       removeItem,
       clearCart,
       placeOrder,
+      confirmPayment,
       refresh: hydrateFromBackend,
     }),
-    [addItem, cart, clearCart, error, hydrateFromBackend, placeOrder, removeItem, status, updateItemQuantity, useLocal]
+    [addItem, cart, clearCart, confirmPayment, error, hydrateFromBackend, placeOrder, removeItem, status, updateItemQuantity, useLocal]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

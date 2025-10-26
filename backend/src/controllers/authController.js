@@ -1,7 +1,7 @@
-const bcrypt = require('bcryptjs');
+﻿const bcrypt = require('bcryptjs');
 const { User } = require('../models');
-const { assignOtpToUser, verifyUserOtp, OTP_EXPIRY_MINUTES } = require('../services/otpService');
-const { sendOtpEmail } = require('../services/mailer');
+const { assignOtp, verifyOtp, OTP_EXPIRY_MINUTES } = require('../services/otpService');
+const { sendOtpEmail, sendPasswordResetEmail } = require('../services/mailer');
 
 async function signup(req, res) {
   const { fullName, email, password, phone } = req.body;
@@ -23,7 +23,7 @@ async function signup(req, res) {
     emailVerified: false,
   });
 
-  const { otp } = await assignOtpToUser(user);
+  const { otp } = await assignOtp(user, 'emailVerification');
   await user.save();
   await sendOtpEmail({ to: user.email, otp, expiresMinutes: OTP_EXPIRY_MINUTES });
 
@@ -47,7 +47,7 @@ async function resendOtp(req, res) {
     return;
   }
 
-  const { otp } = await assignOtpToUser(user);
+  const { otp } = await assignOtp(user, 'emailVerification');
   await user.save();
   await sendOtpEmail({ to: user.email, otp, expiresMinutes: OTP_EXPIRY_MINUTES });
 
@@ -66,7 +66,9 @@ async function verifyEmail(req, res) {
     throw error;
   }
 
-  await verifyUserOtp(user, otp);
+  await verifyOtp(user, 'emailVerification', otp);
+  user.emailVerified = true;
+  user.emailVerifiedAt = new Date();
   await user.save();
 
   res.json({
@@ -110,9 +112,61 @@ async function login(req, res) {
   });
 }
 
+async function requestPasswordReset(req, res) {
+  const { email } = req.body;
+  const normalisedEmail = email.toLowerCase();
+  const user = await User.findOne({ email: normalisedEmail });
+
+  if (!user) {
+    const error = new Error('This email is not registered with us. Please sign up first.');
+    error.status = 404;
+    throw error;
+  }
+
+  if (!user.emailVerified) {
+    const error = new Error('This email is not verified yet. Please verify your account before resetting the password.');
+    error.status = 400;
+    throw error;
+  }
+
+  const { otp } = await assignOtp(user, 'passwordReset');
+  await user.save();
+  await sendPasswordResetEmail({ to: user.email, otp, expiresMinutes: OTP_EXPIRY_MINUTES });
+
+  res.json({
+    success: true,
+    message: 'If an account exists, a password reset code has been sent.',
+  });
+}
+
+async function resetPassword(req, res) {
+  const { email, otp, newPassword } = req.body;
+  const normalisedEmail = email.toLowerCase();
+  const user = await User.findOne({ email: normalisedEmail });
+
+  if (!user) {
+    res.json({
+      success: true,
+      message: 'If an account exists, the password has been reset.',
+    });
+    return;
+  }
+
+  await verifyOtp(user, 'passwordReset', otp);
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  res.json({
+    success: true,
+    message: 'Password updated successfully. You can now log in with your new password.',
+  });
+}
+
 module.exports = {
   signup,
   resendOtp,
   verifyEmail,
   login,
+  requestPasswordReset,
+  resetPassword,
 };
