@@ -34,6 +34,7 @@ Optional environment overrides: `online_annavaram/client/.env`
 ```
 VITE_API_BASE_URL=http://localhost:4000/api
 ```
+For production deployments (e.g., Vercel) set `VITE_API_BASE_URL=https://online-annavaram-backend.onrender.com/api` in the project environment variables so the frontend talks to the Render backend.
 Cart operations fall back to local storage automatically when no user is logged in.
 
 ### Build (Prod)
