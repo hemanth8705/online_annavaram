@@ -1,6 +1,7 @@
 ﻿const express = require('express');
 const authController = require('../controllers/authController');
 const asyncHandler = require('../middlewares/asyncHandler');
+const { authenticate } = require('../middlewares/auth');
 const { validateRequest, buildBodyValidator } = require('../middlewares/validateRequest');
 
 const router = express.Router();
@@ -104,6 +105,8 @@ router.post(
   asyncHandler(authController.login)
 );
 
+router.post('/refresh', asyncHandler(authController.refreshSession));
+
 router.post(
   '/verify-email',
   validateRequest(otpValidator),
@@ -127,5 +130,9 @@ router.post(
   validateRequest(resetValidator),
   asyncHandler(authController.resetPassword)
 );
+
+router.post('/logout', authenticate, asyncHandler(authController.logout));
+router.post('/logout-all', authenticate, asyncHandler(authController.logoutAll));
+router.get('/me', authenticate, asyncHandler(authController.currentUser));
 
 module.exports = router;

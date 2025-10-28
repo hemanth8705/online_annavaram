@@ -32,14 +32,36 @@ async function run() {
     throw new Error('Seed users not found. Run npm run seed first.');
   }
 
+  const login = async (email) => {
+    const response = await fetchJson(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password: 'demo-password',
+      }),
+    });
+
+    if (response.status !== 200) {
+      throw new Error(`Failed to login ${email}: ${JSON.stringify(response.payload)}`);
+    }
+
+    return response.payload.data.accessToken;
+  };
+
+  const customerAccessToken = await login(customer.email);
+  const adminAccessToken = await login(admin.email);
+
   const authHeaders = {
     customer: {
       'Content-Type': 'application/json',
-      'x-user-id': customer._id.toString(),
+      Authorization: `Bearer ${customerAccessToken}`,
     },
     admin: {
       'Content-Type': 'application/json',
-      'x-user-id': admin._id.toString(),
+      Authorization: `Bearer ${adminAccessToken}`,
     },
   };
 
@@ -53,7 +75,9 @@ async function run() {
 
   console.log('1) GET /api/products');
   console.log(
-    await fetchJson(`${baseUrl}/api/products`, { headers: authHeaders.customer })
+    await fetchJson(`${baseUrl}/api/products`, {
+      headers: { Authorization: authHeaders.customer.Authorization },
+    })
   );
 
   console.log('2) POST /api/cart/items');

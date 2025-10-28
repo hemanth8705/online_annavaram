@@ -1,8 +1,8 @@
-﻿# API Endpoints - Online Annavaram
+# API Endpoints - Online Annavaram
 
 Base URL: `/api`
 
-Authentication: send header `x-user-id` with a valid MongoDB ObjectId referencing a `User` document. Admin-only routes additionally require that user to have `role: "admin"`.
+Authentication: send `Authorization: Bearer <accessToken>` on protected endpoints. Access tokens are issued by `/auth/login` and refreshed with `/auth/refresh`. Refresh tokens are stored as HttpOnly cookies and rotated automatically. Admin-only routes additionally require the authenticated user to have `role: "admin"`.
 
 Standard Error Shape:
 ```json
@@ -33,13 +33,40 @@ Standard Error Shape:
 - Response `200`: `{ "success": true, "message": "A new OTP has been sent..." }`
 
 ### `POST /auth/login`
-- Description: Password login (requires verified email).
+- Description: Password login (requires verified email). Returns an access token in the response body and sets a refresh token cookie.
 - Body:
 ```json
 { "email": "sita@example.com", "password": "passw0rd!" }
 ```
-- Response `200`: `{ "success": true, "data": { "user": { "id": "...", "fullName": "...", "email": "..." } } }`
+- Response `200`:
+```json
+{
+  "success": true,
+  "message": "Login successful.",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "accessTokenExpiresAt": "2025-10-27T09:45:30.000Z",
+    "session": {
+      "id": "67203456893a8b34f0ab9051",
+      "expiresAt": "2025-11-24T09:15:30.000Z",
+      "createdAt": "2025-10-27T09:15:30.000Z",
+      "updatedAt": "2025-10-27T09:15:30.000Z"
+    },
+    "user": {
+      "id": "671f2b8b9d1d27c8d12c0a61",
+      "fullName": "Sita Lakshmi",
+      "email": "sita@example.com",
+      "role": "customer"
+    }
+  }
+}
+```
 - Errors: `403` if email not verified, `401` for invalid credentials.
+
+### `POST /auth/refresh`
+- Description: Exchanges the HttpOnly refresh token cookie for a new access token (automatically rotates the refresh token). Call with `credentials: "include"` from the browser.
+- Response `200`: same shape as `POST /auth/login` with updated token/session timestamps.
+- Errors: `401` if the refresh token is missing, expired, or revoked.
 
 ### `POST /auth/forgot-password`
 - Description: Send a password reset OTP to a verified email.
@@ -56,7 +83,7 @@ Standard Error Shape:
 
 ### `POST /payments/razorpay/verify`
 - Description: Confirm a Razorpay payment and mark the order as paid.
-- Headers: `x-user-id` of the logged-in customer.
+- Headers: `Authorization: Bearer <accessToken>`
 - Body:
 ```json
 {
@@ -211,14 +238,21 @@ Standard Error Shape:
 
 ### `GET /admin/orders` (admin)
 - Description: List all orders with user info.
+- Headers: `Authorization: Bearer <accessToken>`
 - Response `200`: `{ "success": true, "data": [ { "user": { "fullName": "..." }, ... } ] }`
 
 ## Utility
 
-### `GET /test`
+### `GET /api/test`
 - Description: Health check returning DB connection status.
 - Response `200`: `{ "message": "Test endpoint is working", "database": "connected", "timestamp": "..." }`
 
+### `GET /api/docs`
+- Description: Interactive Swagger UI explorer. No authentication required.
+
+### `GET /api/docs.json`
+- Description: Raw OpenAPI specification consumed by the Swagger UI.
+
 ## Local Testing Helpers
-- `npm run seed` â€” resets database with demo data.
-- `npm run test:api` â€” runs scripted smoke tests covering product, cart, order, and admin flows.
+- `npm run seed` � resets database with demo data.
+- `npm run test:api` � runs scripted smoke tests covering product, cart, order, and admin flows.

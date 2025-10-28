@@ -71,7 +71,7 @@ async function seedData() {
       price: 49900,
       stock: 120,
       category: 'jaggery',
-      images: ['https://example.com/images/jaggery.jpg'],
+      images: ['https://raw.githubusercontent.com/hemanth8705/online_annavaram/main/client/public/telugu_snacks_images/snacks02.jpg'],
     },
     {
       name: 'Cow Ghee 1L',
@@ -80,7 +80,7 @@ async function seedData() {
       price: 89900,
       stock: 80,
       category: 'ghee',
-      images: ['https://example.com/images/ghee.jpg'],
+      images: [ 'https://raw.githubusercontent.com/hemanth8705/online_annavaram/main/client/public/telugu_snacks_images/snacks01.jpg'],
     },
   ]);
 

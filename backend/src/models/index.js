@@ -6,4 +6,5 @@ module.exports = {
   Order: require('./Order'),
   OrderItem: require('./OrderItem'),
   Payment: require('./Payment'),
+  Session: require('./Session'),
 };

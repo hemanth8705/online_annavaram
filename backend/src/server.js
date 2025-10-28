@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const swaggerUi = require('swagger-ui-express');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -14,23 +16,40 @@ const adminRoutes = require('./routes/admin');
 const authRoutes = require('./routes/auth');
 const paymentRoutes = require('./routes/payments');
 const errorHandler = require('./middlewares/errorHandler');
+const openapiDocument = require('./docs/openapi');
 
 const app = express();
+app.set('trust proxy', 1);
 let serverInstance;
+
+const port = process.env.PORT || 4000;
 
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const implicitOrigins = [
+  `http://localhost:${port}`,
+  `http://127.0.0.1:${port}`,
+  process.env.API_PUBLIC_ORIGIN,
+].filter(Boolean);
+
+const allowedOriginSet = new Set([...allowedOrigins, ...implicitOrigins]);
+
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      allowedOriginSet.size === 0 ||
+      allowedOriginSet.has(origin)
+    ) {
       callback(null, true);
     } else {
       callback(new Error(`Origin ${origin} not allowed by CORS`));
     }
   },
+  credentials: true,
 };
 
 app.use(cors(corsOptions));
@@ -45,6 +64,11 @@ app.use((req, res, next) => {
   return next();
 });
 app.use(express.json());
+app.use(cookieParser());
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument, { explorer: true }));
+app.get('/api/docs.json', (_req, res) => {
+  res.json(openapiDocument);
+});
 
 app.get('/', (_req, res) => {
   res.json({ message: 'Server running' });
@@ -65,8 +89,6 @@ app.use((req, res, next) => {
 });
 
 app.use(errorHandler);
-
-const port = process.env.PORT || 4000;
 
 async function startServer() {
   try {

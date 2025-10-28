@@ -1,5 +1,9 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 
+if (typeof console !== 'undefined') {
+  console.info('[api] Using API_BASE_URL:', API_BASE_URL);
+}
+
 async function parseResponse(response) {
   const contentType = response.headers.get('content-type') || '';
   const isJSON = contentType.includes('application/json');
@@ -38,8 +42,44 @@ async function request(path, { method = 'GET', data, headers = {}, userId, signa
     init.headers['x-user-id'] = userId;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, init);
-  return parseResponse(response);
+  const url = `${API_BASE_URL}${path}`;
+  const logContext = {
+    method: init.method,
+    url,
+    userId,
+    hasBody: typeof init.body !== 'undefined',
+  };
+
+  console.debug('[api] request:start', logContext);
+
+  let response;
+  try {
+    response = await fetch(url, init);
+  } catch (networkError) {
+    console.error('[api] request:network-error', {
+      ...logContext,
+      message: networkError?.message,
+    });
+    throw networkError;
+  }
+
+  try {
+    const payload = await parseResponse(response);
+    console.debug('[api] request:success', {
+      ...logContext,
+      status: response.status,
+      payload,
+    });
+    return payload;
+  } catch (error) {
+    console.error('[api] request:error', {
+      ...logContext,
+      status: response?.status,
+      message: error?.message,
+      details: error?.details,
+    });
+    throw error;
+  }
 }
 
 export function getProducts(params = {}, options = {}) {

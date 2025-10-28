@@ -1,27 +1,34 @@
-const mongoose = require('mongoose');
-
 const { User } = require('../models');
+const {
+  verifyAccessToken,
+  validateSession,
+} = require('../services/sessionService');
 
 async function authenticate(req, _res, next) {
   try {
-    const userId =
-      req.headers['x-user-id'] ||
-      (req.user && req.user.id) ||
-      (req.auth && req.auth.id);
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : null;
 
-    if (!userId) {
+    if (!token) {
       const error = new Error('Authentication required');
       error.status = 401;
       throw error;
     }
 
-    if (!mongoose.isValidObjectId(userId)) {
-      const error = new Error('Invalid user identifier');
-      error.status = 400;
+    let payload;
+    try {
+      payload = verifyAccessToken(token);
+    } catch (err) {
+      const error = new Error('Invalid or expired access token');
+      error.status = 401;
       throw error;
     }
 
-    const user = await User.findById(userId);
+    const session = await validateSession(payload.sid, payload.sub);
+
+    const user = await User.findById(payload.sub);
     if (!user) {
       const error = new Error('User not found');
       error.status = 401;
@@ -34,6 +41,12 @@ async function authenticate(req, _res, next) {
       throw error;
     }
 
+    req.auth = {
+      userId: String(user._id),
+      sessionId: String(session._id),
+      role: user.role,
+    };
+    req.session = session;
     req.user = user;
     next();
   } catch (err) {
