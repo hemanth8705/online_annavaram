@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+motor
+pydantic[email]
+passlib[bcrypt]
+PyJWT[crypto]
+aiofiles
+aiosmtplib
+razorpay
+beanie
+python-multipart
+httpx
