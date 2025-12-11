@@ -8,6 +8,7 @@
 - [x] After login, signup, or password reset, keep the user signed in without re-prompting credentials.
 - [x] Redirect unauthenticated users who hit cart or checkout to the login page.
 - [x] Disable the checkout button when the cart is empty.
+- [x] Require authentication before adding items to the cart; redirect unauthenticated attempts to login/signup.
 
 ## P1 – Checkout experience & address handling
 - [ ] Auto-load saved address/contact from DB during checkout; prefill with signup info if no record exists.
@@ -30,7 +31,6 @@
 - [ ] Integrate Google OAuth for quicker signup/login.
 - [ ] Integrate Razorpay subscriptions.
 - [ ] Implement an admin panel for order management and analytics.
-
 
 
 

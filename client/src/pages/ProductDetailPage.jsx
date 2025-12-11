@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import LoadingState from '../components/common/LoadingState';
 import ErrorMessage from '../components/common/ErrorMessage';
@@ -8,11 +8,14 @@ import { getProductById } from '../lib/apiClient';
 import { FALLBACK_PRODUCTS } from '../config/site';
 import { formatCurrency } from '../lib/formatters';
 import useCart from '../hooks/useCart';
+import useAuth from '../hooks/useAuth';
 
 const ProductDetailPage = () => {
   const { productId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { addItem } = useCart();
+  const { accessToken, hydrated } = useAuth();
   const [product, setProduct] = useState(null);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
@@ -63,6 +66,13 @@ const ProductDetailPage = () => {
 
   const handleAddToCart = async () => {
     console.log('[ProductDetail] add to cart clicked', { productId, quantity });
+    if (!hydrated || !accessToken) {
+      navigate('/auth/login', {
+        replace: false,
+        state: { from: `${location.pathname}${location.search}` },
+      });
+      return;
+    }
     await addItem(product, quantity);
     navigate('/cart', { state: { from: `/products/${productId}` } });
   };

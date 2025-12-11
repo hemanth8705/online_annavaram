@@ -170,6 +170,12 @@ export const CartProvider = ({ children }) => {
         throw new Error('Product identifier missing');
       }
 
+      if (!accessToken) {
+        const authError = new Error('Please log in to add items to your cart.');
+        authError.status = 401;
+        throw authError;
+      }
+
       console.log('[Cart] addItem called', { productId, quantity, product, useLocal, hasToken: !!accessToken });
       if (!useLocal && accessToken) {
         try {

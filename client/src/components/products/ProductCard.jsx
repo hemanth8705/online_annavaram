@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../lib/formatters';
 import QuantityInput from '../common/QuantityInput';
 import useCart from '../../hooks/useCart';
+import useAuth from '../../hooks/useAuth';
 
 function resolveProductId(product = {}) {
   const rawId =
@@ -16,7 +17,9 @@ function resolveProductId(product = {}) {
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { cart, addItem, updateItemQuantity } = useCart();
+  const { accessToken, hydrated } = useAuth();
 
   const productId = resolveProductId(product);
   const price = formatCurrency(product.price);
@@ -34,6 +37,13 @@ const ProductCard = ({ product }) => {
 
   const handleAddToCartClick = async () => {
     console.log('[UI] Add to Cart clicked', { productId, product, cartItem });
+    if (!hydrated || !accessToken) {
+      navigate('/auth/login', {
+        replace: false,
+        state: { from: `${location.pathname}${location.search}` },
+      });
+      return;
+    }
     try {
       await addItem(product, 1);
     } catch (error) {
@@ -77,6 +87,7 @@ const ProductCard = ({ product }) => {
             type="button"
             className="btn btn-secondary product-card__btn"
             onClick={handleAddToCartClick}
+            disabled={!hydrated}
           >
             {product.actionLabel || 'Add to Cart'}
           </button>
