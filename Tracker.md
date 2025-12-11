@@ -36,3 +36,5 @@ OCT 13: Email OTP authentication added
 OCT 13: Razorpay payments enabled
 - Integrated Razorpay checkout on backend (order creation, payment verification)
 - Frontend checkout now opens Razorpay modal and confirms payment before success page
+
+
