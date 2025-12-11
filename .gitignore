@@ -5,4 +5,7 @@ dist/
 .DS_Store
 *.log
 env/
-
+*.pyc
+__pycache__/
+backend/src/__pycache__/
+.idea/
