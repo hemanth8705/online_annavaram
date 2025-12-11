@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   addCartItem,
   createOrder,
@@ -91,12 +91,15 @@ function persistLocalCart(items) {
   }
 }
 
+const EMPTY_CART = { items: [], totals: { quantity: 0, amount: 0 }, status: 'active' };
+
 export const CartProvider = ({ children }) => {
-  const { user, accessToken } = useAuth();
-  const [cart, setCart] = useState({ items: [], totals: { quantity: 0, amount: 0 }, status: 'active' });
+  const { user, accessToken, hydrated } = useAuth();
+  const [cart, setCart] = useState(EMPTY_CART);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [useLocal, setUseLocal] = useState(!accessToken);
+  const hadAuthenticatedSession = useRef(false);
 
   const hydrateFromBackend = useCallback(async () => {
     if (!accessToken) {
@@ -126,17 +129,28 @@ export const CartProvider = ({ children }) => {
   }, [accessToken]);
 
   useEffect(() => {
-    if (accessToken) {
+    if (!hydrated) return;
+
+    const hasToken = !!accessToken;
+    if (hasToken) {
+      hadAuthenticatedSession.current = true;
       setUseLocal(false);
       setError(null);
       hydrateFromBackend();
     } else {
+      const shouldClear = hadAuthenticatedSession.current;
+      if (shouldClear) {
+        console.log('[Cart] clearing cart on logout/guest view');
+        persistLocalCart([]);
+        setCart(EMPTY_CART);
+      } else {
+        setCart(loadLocalCart());
+      }
       setUseLocal(true);
-      setCart(loadLocalCart());
       setStatus('ready');
       setError(null);
     }
-  }, [accessToken, hydrateFromBackend]);
+  }, [accessToken, hydrateFromBackend, hydrated]);
 
   const applyLocalUpdate = useCallback((updater) => {
     setCart((prev) => {
@@ -255,7 +269,7 @@ export const CartProvider = ({ children }) => {
   const clearCart = useCallback(() => {
     console.log('[Cart] clearCart invoked');
     persistLocalCart([]);
-    setCart({ items: [], totals: { quantity: 0, amount: 0 }, status: 'active' });
+    setCart(EMPTY_CART);
   }, []);
 
   const placeOrder = useCallback(

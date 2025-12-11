@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import useAuth from '../hooks/useAuth';
@@ -12,9 +12,20 @@ const initialState = {
 
 const AuthSignupPage = () => {
   const navigate = useNavigate();
-  const { signup, authStatus, authError, setAuthError } = useAuth();
+  const { signup, authStatus, authError, setAuthError, accessToken, hydrated, user } = useAuth();
   const [form, setForm] = useState(initialState);
   const [successMessage, setSuccessMessage] = useState('');
+  const wasAuthenticatedOnMount = useRef(null);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (wasAuthenticatedOnMount.current === null) {
+      wasAuthenticatedOnMount.current = !!accessToken;
+    }
+    if (wasAuthenticatedOnMount.current && accessToken && user?.emailVerified !== false) {
+      navigate('/', { replace: true });
+    }
+  }, [accessToken, hydrated, navigate, user?.emailVerified]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;

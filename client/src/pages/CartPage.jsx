@@ -1,15 +1,34 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import QuantityInput from '../components/common/QuantityInput';
 import { formatCurrency } from '../lib/formatters';
 import useCart from '../hooks/useCart';
+import useAuth from '../hooks/useAuth';
 
 const CartPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { cart, status, updateItemQuantity, removeItem } = useCart();
+  const { accessToken, hydrated } = useAuth();
   const items = cart.items || [];
 
   const isEmpty = items.length === 0;
+  const checkoutDisabled = isEmpty || (cart?.totals?.quantity ?? 0) <= 0;
+
+  if (!hydrated) {
+    return null;
+  }
+
+  if (!accessToken) {
+    return (
+      <Navigate
+        to="/auth/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}` }}
+      />
+    );
+  }
 
   return (
     <Layout>
@@ -89,7 +108,17 @@ const CartPage = () => {
                   <span>Total</span>
                   <span>{formatCurrency(cart.totals.amount)}</span>
                 </div>
-                <Link to="/checkout" className="btn btn-primary cart-summary__checkout">
+                <Link
+                  to="/checkout"
+                  className="btn btn-primary cart-summary__checkout"
+                  aria-disabled={checkoutDisabled}
+                  onClick={(event) => {
+                    if (checkoutDisabled) {
+                      event.preventDefault();
+                    }
+                  }}
+                  style={checkoutDisabled ? { pointerEvents: 'none', opacity: 0.6 } : undefined}
+                >
                   Checkout
                 </Link>
               </aside>

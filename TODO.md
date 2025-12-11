@@ -1,13 +1,13 @@
 # TODO (prioritized)
 
 ## P0 – Fix critical auth/checkout flows
-- [ ] Redirect authenticated/verified users to home after login/signup, skipping OTP when already verified.
-- [ ] After OTP verification, land on home page instead of the login page.
-- [ ] During forgot password, if the email is not registered, inform the user and suggest signup.
-- [ ] Split forgot password into two steps: OTP entry, then reset password on a separate page.
-- [ ] After login, signup, or password reset, keep the user signed in without re-prompting credentials.
-- [ ] Redirect unauthenticated users who hit cart or checkout to the login page.
-- [ ] Disable the checkout button when the cart is empty.
+- [x] Redirect authenticated/verified users to home after login/signup, skipping OTP when already verified.
+- [x] After OTP verification, land on home page instead of the login page.
+- [x] During forgot password, if the email is not registered, inform the user and suggest signup.
+- [x] Split forgot password into two steps: OTP entry, then reset password on a separate page.
+- [x] After login, signup, or password reset, keep the user signed in without re-prompting credentials.
+- [x] Redirect unauthenticated users who hit cart or checkout to the login page.
+- [x] Disable the checkout button when the cart is empty.
 
 ## P1 – Checkout experience & address handling
 - [ ] Auto-load saved address/contact from DB during checkout; prefill with signup info if no record exists.
@@ -30,3 +30,9 @@
 - [ ] Integrate Google OAuth for quicker signup/login.
 - [ ] Integrate Razorpay subscriptions.
 - [ ] Implement an admin panel for order management and analytics.
+
+
+
+
+
+

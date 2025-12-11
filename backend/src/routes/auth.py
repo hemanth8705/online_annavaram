@@ -75,10 +75,11 @@ async def refresh(payload: RefreshPayload, request: Request, response: Response)
 
 
 @router.post("/verify-email")
-async def verify_email(payload: OtpPayload, response: Response):
+async def verify_email(payload: OtpPayload, request: Request, response: Response):
     return await authController.verifyEmail(
         email=payload.email,
         otp=payload.otp,
+        request=request,
         response=response,
     )
 
@@ -102,11 +103,12 @@ async def request_password_reset(payload: ResendPayload, response: Response, bac
 
 
 @router.post("/reset-password")
-async def reset_password(payload: ResetPayload, response: Response):
+async def reset_password(payload: ResetPayload, request: Request, response: Response):
     return await authController.resetPassword(
         email=payload.email,
         otp=payload.otp,
         newPassword=payload.newPassword,
+        request=request,
         response=response,
     )
 

@@ -1,11 +1,4 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   signup as signupRequest,
   verifyEmail as verifyEmailRequest,
@@ -18,6 +11,7 @@ import {
 const AuthContext = createContext(undefined);
 
 const STORAGE_KEY = 'online-annavaram@auth-user';
+const ACCESS_TOKEN_KEY = 'online-annavaram@access-token';
 
 function normaliseUser(user) {
   if (!user) {
@@ -27,6 +21,9 @@ function normaliseUser(user) {
     id: user.id || user._id,
     fullName: user.fullName,
     email: user.email,
+    phone: user.phone,
+    role: user.role,
+    emailVerified: Boolean(user.emailVerified),
   };
 }
 
@@ -36,11 +33,12 @@ export const AuthProvider = ({ children }) => {
   const [pendingEmail, setPendingEmail] = useState(null);
   const [authStatus, setAuthStatus] = useState('idle');
   const [authError, setAuthError] = useState(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      const storedToken = localStorage.getItem('online-annavaram@access-token');
+      const storedToken = localStorage.getItem(ACCESS_TOKEN_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         setUser(normaliseUser(parsed));
@@ -50,6 +48,8 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.warn('Failed to parse stored auth user', error);
+    } finally {
+      setHydrated(true);
     }
   }, []);
 
@@ -60,6 +60,33 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
+
+  const persistAccessToken = useCallback((token) => {
+    if (token) {
+      localStorage.setItem(ACCESS_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(ACCESS_TOKEN_KEY);
+    }
+  }, []);
+
+  const applyAuthSession = useCallback(
+    (response) => {
+      const payload = response?.data || response;
+      if (!payload) return null;
+      const nextUser = normaliseUser(payload.user);
+      const token = payload.accessToken || null;
+
+      if (nextUser) {
+        setUser(nextUser);
+        persistUser(nextUser);
+      }
+      setAccessToken(token);
+      persistAccessToken(token);
+
+      return { user: nextUser, token };
+    },
+    [persistAccessToken, persistUser]
+  );
 
   const signup = useCallback(
     async (payload) => {
@@ -86,6 +113,7 @@ export const AuthProvider = ({ children }) => {
       setAuthError(null);
       try {
         const response = await verifyEmailRequest(payload);
+        applyAuthSession(response);
         setPendingEmail(null);
         setAuthStatus('idle');
         return response;
@@ -95,7 +123,7 @@ export const AuthProvider = ({ children }) => {
         throw error;
       }
     },
-    []
+    [applyAuthSession]
   );
 
   const resendOtp = useCallback(
@@ -122,23 +150,21 @@ export const AuthProvider = ({ children }) => {
       setAuthError(null);
       try {
         const response = await loginRequest(payload);
-        const nextUser = normaliseUser(response?.data?.user);
-        const token = response?.data?.accessToken;
-        setUser(nextUser);
-        setAccessToken(token);
-        persistUser(nextUser);
-        if (token) {
-          localStorage.setItem('online-annavaram@access-token', token);
-        }
+        applyAuthSession(response);
+        setPendingEmail(null);
         setAuthStatus('idle');
         return response;
       } catch (error) {
         setAuthStatus('idle');
-        setAuthError(error.message || 'Login failed');
+        if (error?.status === 401) {
+          setAuthError('Invalid email or password.');
+        } else {
+          setAuthError(error.message || 'Login failed');
+        }
         throw error;
       }
     },
-    [persistUser]
+    [applyAuthSession]
   );
 
   const requestPasswordReset = useCallback(
@@ -165,6 +191,8 @@ export const AuthProvider = ({ children }) => {
       setAuthError?.(null);
       try {
         const response = await resetPasswordRequest(payload);
+        applyAuthSession(response);
+        setPendingEmail(null);
         setAuthStatus('idle');
         return response;
       } catch (error) {
@@ -173,7 +201,7 @@ export const AuthProvider = ({ children }) => {
         throw error;
       }
     },
-    []
+    [applyAuthSession]
   );
 
   const logout = useCallback(() => {
@@ -181,8 +209,8 @@ export const AuthProvider = ({ children }) => {
     setAccessToken(null);
     setPendingEmail(null);
     persistUser(null);
-    localStorage.removeItem('online-annavaram@access-token');
-  }, [persistUser]);
+    persistAccessToken(null);
+  }, [persistAccessToken, persistUser]);
 
   const value = useMemo(
     () => ({
@@ -191,6 +219,7 @@ export const AuthProvider = ({ children }) => {
       pendingEmail,
       authStatus,
       authError,
+      hydrated,
       signup,
       verifyEmail,
       resendOtp,
@@ -205,6 +234,7 @@ export const AuthProvider = ({ children }) => {
       accessToken,
       authError,
       authStatus,
+      hydrated,
       login,
       logout,
       pendingEmail,

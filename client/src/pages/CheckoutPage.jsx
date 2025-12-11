@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import useCart from '../hooks/useCart';
 import useAuth from '../hooks/useAuth';
@@ -32,13 +32,28 @@ const loadRazorpayScript = () =>
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { cart, placeOrder, confirmPayment, useLocal } = useCart();
-  const { user } = useAuth();
+  const { user, accessToken, hydrated } = useAuth();
   const [formValues, setFormValues] = useState(initialFormState);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
 
   const isCartEmpty = cart.items.length === 0;
+
+  if (!hydrated) {
+    return null;
+  }
+
+  if (!accessToken) {
+    return (
+      <Navigate
+        to="/auth/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}` }}
+      />
+    );
+  }
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -287,7 +302,11 @@ const CheckoutPage = () => {
                   </p>
                 )}
 
-                <button type="submit" className="btn btn-primary" disabled={status === 'submitting'}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={status === 'submitting' || isCartEmpty}
+                >
                   {status === 'submitting' ? 'Processing...' : 'Place Order'}
                 </button>
               </form>

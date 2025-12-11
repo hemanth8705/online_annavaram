@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import useAuth from '../hooks/useAuth';
@@ -6,10 +6,21 @@ import useAuth from '../hooks/useAuth';
 const AuthLoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, authStatus, authError, setAuthError } = useAuth();
+  const { login, authStatus, authError, setAuthError, accessToken, hydrated, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const wasAuthenticatedOnMount = useRef(null);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (wasAuthenticatedOnMount.current === null) {
+      wasAuthenticatedOnMount.current = !!accessToken;
+    }
+    if (wasAuthenticatedOnMount.current && accessToken && user?.emailVerified !== false) {
+      navigate('/', { replace: true });
+    }
+  }, [accessToken, hydrated, navigate, user?.emailVerified]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -17,10 +28,13 @@ const AuthLoginPage = () => {
     setAuthError?.(null);
     try {
       const response = await login({ email, password });
-      const redirectTo =
-        location.state?.from && !location.state.from.startsWith('/auth/')
-          ? location.state.from
-          : '/';
+      const from = location.state?.from;
+      let redirectTo = '/';
+      if (from && !from.startsWith('/auth/')) {
+        const fromLower = from.toLowerCase();
+        const isCartOrCheckout = fromLower.includes('/cart') || fromLower.includes('/checkout');
+        redirectTo = isCartOrCheckout ? '/' : from;
+      }
       setMessage(response?.message || 'Login successful!');
       setTimeout(() => navigate(redirectTo), 600);
     } catch (error) {

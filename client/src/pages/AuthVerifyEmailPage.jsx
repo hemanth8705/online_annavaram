@@ -13,6 +13,9 @@ const AuthVerifyEmailPage = () => {
     authStatus,
     authError,
     setAuthError,
+    accessToken,
+    hydrated,
+    user,
   } = useAuth();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -27,15 +30,22 @@ const AuthVerifyEmailPage = () => {
     }
   }, [searchParams, pendingEmail]);
 
+  useEffect(() => {
+    if (!hydrated) return;
+    if (accessToken && user?.emailVerified !== false) {
+      navigate('/', { replace: true });
+    }
+  }, [accessToken, hydrated, navigate, user?.emailVerified]);
+
   const handleVerify = async (event) => {
     event.preventDefault();
     setMessage('');
     setAuthError?.(null);
     try {
       await verifyEmail({ email, otp });
-      setMessage('Email verified! You can now log in.');
+      setMessage('Email verified! Redirecting you to the home page.');
       setOtp('');
-      setTimeout(() => navigate('/auth/login'), 1200);
+      setTimeout(() => navigate('/', { replace: true }), 900);
     } catch (error) {
       // handled via context
     }

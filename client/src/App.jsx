@@ -12,6 +12,7 @@ import AuthLoginPage from './pages/AuthLoginPage';
 import AuthVerifyEmailPage from './pages/AuthVerifyEmailPage';
 import AuthForgotPasswordPage from './pages/AuthForgotPasswordPage';
 import AuthResetPasswordPage from './pages/AuthResetPasswordPage';
+import AuthResetPasswordNewPage from './pages/AuthResetPasswordNewPage';
 
 const App = () => (
   <Routes>
@@ -27,6 +28,7 @@ const App = () => (
     <Route path="/auth/verify" element={<AuthVerifyEmailPage />} />
     <Route path="/auth/forgot-password" element={<AuthForgotPasswordPage />} />
     <Route path="/auth/reset-password" element={<AuthResetPasswordPage />} />
+    <Route path="/auth/reset-password/new" element={<AuthResetPasswordNewPage />} />
   </Routes>
 );
 

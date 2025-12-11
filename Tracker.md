@@ -37,4 +37,21 @@ OCT 13: Razorpay payments enabled
 - Integrated Razorpay checkout on backend (order creation, payment verification)
 - Frontend checkout now opens Razorpay modal and confirms payment before success page
 
+OCT 25-28: Cart/checkout backend and CORS improvements
+- Updated page metadata title to "Online Annavaram"
+- Added password reset flow and Razorpay payment integration wiring
+- Improved CORS handling for allowed origins and preflight headers
+- Implemented cart, orders, payments, and products API endpoints end-to-end
+
+NOV 6: Migrated backend to FastAPI
+- Ported server to FastAPI structure with routes, controllers, and middleware
+
+DEC 11: Auth sessions, docs, and UX polish
+- Updated dependencies and access token management; added .gitignore entries
+- Added TODO/testing/next steps docs and refined auth/user flows
+- Added auto-login after email verification and password reset; tokens are persisted client-side
+- Split forgot password into two-step OTP capture + new password pages with stored OTP handoff
+- Improved login/signup/verify guards to redirect authenticated users home and show friendly 401 messaging
+- Enforced auth guards on cart/checkout without flashing content; redirect-to-login now returns to home after auth
+- Cleared cart state on logout and disabled checkout when cart is empty; cart badge resets immediately
 

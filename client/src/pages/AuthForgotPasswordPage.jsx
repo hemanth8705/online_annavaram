@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import useAuth from '../hooks/useAuth';
@@ -8,17 +8,30 @@ const AuthForgotPasswordPage = () => {
   const { pendingEmail, requestPasswordReset, authStatus, authError, setAuthError } = useAuth();
   const [email, setEmail] = useState(pendingEmail || '');
   const [message, setMessage] = useState('');
+  const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+
+  useEffect(() => {
+    if (pendingEmail) {
+      setEmail(pendingEmail);
+    }
+  }, [pendingEmail]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setMessage('');
     setAuthError?.(null);
+    setShowSignupPrompt(false);
     try {
       await requestPasswordReset({ email });
-      setMessage('If an account exists, a reset code has been emailed.');
-      setTimeout(() => navigate(`/auth/reset-password?email=${encodeURIComponent(email.toLowerCase())}`), 800);
+      setMessage('A reset code has been emailed. Enter it on the next step.');
+      setTimeout(
+        () => navigate(`/auth/reset-password?email=${encodeURIComponent(email.toLowerCase())}`),
+        800
+      );
     } catch (error) {
-      // handled via context
+      if (error?.status === 404 || /not registered/i.test(error?.message || '')) {
+        setShowSignupPrompt(true);
+      }
     }
   };
 
@@ -42,6 +55,15 @@ const AuthForgotPasswordPage = () => {
             </div>
             {authError && <p className="form-error">{authError}</p>}
             {message && <p className="form-success">{message}</p>}
+            {showSignupPrompt && (
+              <p className="form-hint">
+                New here?{' '}
+                <Link to="/auth/signup" className="text-link">
+                  Create an account
+                </Link>{' '}
+                to continue.
+              </p>
+            )}
             <button
               type="submit"
               className="btn btn-primary"

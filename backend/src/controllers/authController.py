@@ -149,7 +149,7 @@ async def resendOtp(*, email: str, response: Response, background: BackgroundTas
     return {"success": True, "message": "OTP resent successfully."}
 
 
-async def verifyEmail(*, email: str, otp: str, response: Response):
+async def verifyEmail(*, email: str, otp: str, request: Request, response: Response):
     user = await User.find_one(User.email == email.lower())
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
@@ -162,7 +162,23 @@ async def verifyEmail(*, email: str, otp: str, response: Response):
     user.emailVerifiedAt = datetime.now(tz=timezone.utc)
     await user.save()
 
-    return {"success": True, "message": "Email verified successfully."}
+    session_payload = await createSession(
+        user=user,
+        userAgent=request.headers.get("user-agent"),
+        ipAddress=request.client.host if request.client else None,
+        metadata={"source": "emailVerification"},
+    )
+    _set_refresh_cookie(response, session_payload["refreshToken"], session_payload["refreshTokenExpiresAt"])
+
+    return {
+        **_build_auth_response(
+            user=user,
+            access_token=session_payload["accessToken"],
+            access_expires=session_payload["accessTokenExpiresAt"],
+            session=session_payload["session"],
+        ),
+        "message": "Email verified successfully. You're now signed in.",
+    }
 
 
 async def login(*, email: str, password: str, request: Request, response: Response):
@@ -260,7 +276,7 @@ async def requestPasswordReset(*, email: str, response: Response, background: Ba
     return {"success": True, "message": "If an account exists, a password reset code has been sent."}
 
 
-async def resetPassword(*, email: str, otp: str, newPassword: str, response: Response):
+async def resetPassword(*, email: str, otp: str, newPassword: str, request: Request, response: Response):
     user = await User.find_one(User.email == email.lower())
     if not user:
         return {"success": True, "message": "If an account exists, the password has been reset."}
@@ -270,11 +286,27 @@ async def resetPassword(*, email: str, otp: str, newPassword: str, response: Res
     except OtpServiceError as exc:
         raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
 
+    await revokeAllUserSessions(user.id)
     user.passwordHash = password_context.hash(newPassword)
     await user.save()
-    await revokeAllUserSessions(user.id)
 
-    return {"success": True, "message": "Password updated successfully. You can now log in with your new password."}
+    session_payload = await createSession(
+        user=user,
+        userAgent=request.headers.get("user-agent"),
+        ipAddress=request.client.host if request.client else None,
+        metadata={"source": "passwordReset"},
+    )
+    _set_refresh_cookie(response, session_payload["refreshToken"], session_payload["refreshTokenExpiresAt"])
+
+    return {
+        **_build_auth_response(
+            user=user,
+            access_token=session_payload["accessToken"],
+            access_expires=session_payload["accessTokenExpiresAt"],
+            session=session_payload["session"],
+        ),
+        "message": "Password updated successfully. You're now signed in with your new password.",
+    }
 
 
 async def currentUser(*, request: Request):
