@@ -7,11 +7,20 @@ from pathlib import Path
 from typing import Iterable, List, Optional
 
 from dotenv import load_dotenv, dotenv_values
+
+# Load environment variables from backend/.env (and project root if present)
+CURRENT_DIR = Path(__file__).resolve().parent
+BACKEND_DIR = CURRENT_DIR.parent
+PROJECT_ROOT = BACKEND_DIR.parent
+
+load_dotenv(PROJECT_ROOT / ".env", override=False)
+load_dotenv(BACKEND_DIR / ".env", override=True)
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from .db import connect_to_database, disconnect_from_database
 from .routes import (
@@ -23,14 +32,6 @@ from .routes import (
     products_router,
     test_router,
 )
-
-# Load environment variables from backend/.env (and project root if present)
-CURRENT_DIR = Path(__file__).resolve().parent
-BACKEND_DIR = CURRENT_DIR.parent
-PROJECT_ROOT = BACKEND_DIR.parent
-
-load_dotenv(PROJECT_ROOT / ".env", override=False)
-load_dotenv(BACKEND_DIR / ".env", override=True)
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -91,13 +92,20 @@ def create_app() -> FastAPI:
     async def healthcheck():
         return {"message": "Server running"}
 
-    @app.get("/api/docs", include_in_schema=False)
-    async def custom_swagger_ui():
+    def _swagger_ui():
         return get_swagger_ui_html(
             openapi_url=app.openapi_url,
             title="Online Annavaram API Docs",
             oauth2_redirect_url=None,
         )
+
+    @app.get("/api/docs", include_in_schema=False)
+    async def custom_swagger_ui():
+        return _swagger_ui()
+
+    @app.get("/docs", include_in_schema=False)
+    async def legacy_swagger_ui_redirect():
+        return RedirectResponse(url="/api/docs")
 
     register_routes(app)
     register_exception_handlers(app)

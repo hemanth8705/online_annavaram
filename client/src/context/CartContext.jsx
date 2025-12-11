@@ -92,28 +92,27 @@ function persistLocalCart(items) {
 }
 
 export const CartProvider = ({ children }) => {
-  const { user } = useAuth();
-  const userId = user?.id || user?._id || null;
+  const { user, accessToken } = useAuth();
   const [cart, setCart] = useState({ items: [], totals: { quantity: 0, amount: 0 }, status: 'active' });
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
-  const [useLocal, setUseLocal] = useState(!userId);
+  const [useLocal, setUseLocal] = useState(!accessToken);
 
   const hydrateFromBackend = useCallback(async () => {
-    if (!userId) {
-      console.log('[Cart] hydrating from local storage (no user id)');
+    if (!accessToken) {
+      console.log('[Cart] hydrating from local storage (no access token)');
       setUseLocal(true);
       setCart(loadLocalCart());
       setStatus('ready');
       return;
     }
 
-    console.log('[Cart] hydrating from backend', { userId });
+    console.log('[Cart] hydrating from backend', { hasToken: !!accessToken });
     setStatus('loading');
     setError(null);
 
     try {
-      const response = await getCart(userId);
+      const response = await getCart(accessToken);
       setCart(normaliseCart(response));
       setStatus('ready');
     } catch (err) {
@@ -124,10 +123,10 @@ export const CartProvider = ({ children }) => {
       setStatus('ready');
       setError(err);
     }
-  }, [userId]);
+  }, [accessToken]);
 
   useEffect(() => {
-    if (userId) {
+    if (accessToken) {
       setUseLocal(false);
       setError(null);
       hydrateFromBackend();
@@ -137,7 +136,7 @@ export const CartProvider = ({ children }) => {
       setStatus('ready');
       setError(null);
     }
-  }, [userId, hydrateFromBackend]);
+  }, [accessToken, hydrateFromBackend]);
 
   const applyLocalUpdate = useCallback((updater) => {
     setCart((prev) => {
@@ -157,11 +156,11 @@ export const CartProvider = ({ children }) => {
         throw new Error('Product identifier missing');
       }
 
-      console.log('[Cart] addItem called', { productId, quantity, product, useLocal, userId });
-      if (!useLocal && userId) {
+      console.log('[Cart] addItem called', { productId, quantity, product, useLocal, hasToken: !!accessToken });
+      if (!useLocal && accessToken) {
         try {
           setStatus('updating');
-          const response = await addCartItem(userId, {
+          const response = await addCartItem(accessToken, {
             productId,
             quantity,
           });
@@ -202,16 +201,16 @@ export const CartProvider = ({ children }) => {
         return nextItems.filter((item) => item.quantity > 0);
       });
     },
-    [applyLocalUpdate, useLocal, userId]
+    [applyLocalUpdate, useLocal, accessToken]
   );
 
   const updateItemQuantity = useCallback(
     async (itemId, quantity) => {
-      console.log('[Cart] updateItemQuantity called', { itemId, quantity, useLocal, userId });
-      if (!useLocal && userId) {
+      console.log('[Cart] updateItemQuantity called', { itemId, quantity, useLocal, hasToken: !!accessToken });
+      if (!useLocal && accessToken) {
         try {
           setStatus('updating');
-          const response = await updateCartItem(userId, itemId, { quantity });
+          const response = await updateCartItem(accessToken, itemId, { quantity });
           setCart(normaliseCart(response));
           setStatus('ready');
           return;
@@ -228,16 +227,16 @@ export const CartProvider = ({ children }) => {
           .filter((item) => item.quantity > 0)
       );
     },
-    [applyLocalUpdate, useLocal, userId]
+    [applyLocalUpdate, useLocal, accessToken]
   );
 
   const removeItem = useCallback(
     async (itemId) => {
-      console.log('[Cart] removeItem called', { itemId, useLocal, userId });
-      if (!useLocal && userId) {
+      console.log('[Cart] removeItem called', { itemId, useLocal, hasToken: !!accessToken });
+      if (!useLocal && accessToken) {
         try {
           setStatus('updating');
-          const response = await deleteCartItem(userId, itemId);
+          const response = await deleteCartItem(accessToken, itemId);
           setCart(normaliseCart(response));
           setStatus('ready');
           return;
@@ -250,7 +249,7 @@ export const CartProvider = ({ children }) => {
 
       applyLocalUpdate((items) => items.filter((item) => item.id !== itemId));
     },
-    [applyLocalUpdate, useLocal, userId]
+    [applyLocalUpdate, useLocal, accessToken]
   );
 
   const clearCart = useCallback(() => {
@@ -261,8 +260,8 @@ export const CartProvider = ({ children }) => {
 
   const placeOrder = useCallback(
     async (payload) => {
-      console.log('[Cart] placeOrder called', { payload, useLocal, userId });
-      if (useLocal || !userId) {
+      console.log('[Cart] placeOrder called', { payload, useLocal, hasToken: !!accessToken });
+      if (useLocal || !accessToken) {
         const mockOrder = {
           order: {
             _id: `local-order-${Date.now()}`,
@@ -280,22 +279,22 @@ export const CartProvider = ({ children }) => {
         return mockOrder;
       }
 
-      const response = await createOrder(userId, payload);
+      const response = await createOrder(accessToken, payload);
       setCart({ items: [], totals: { quantity: 0, amount: 0 }, status: 'active' });
       return response.data;
     },
-    [cart.items, cart.totals.amount, clearCart, useLocal, userId]
+    [cart.items, cart.totals.amount, clearCart, useLocal, accessToken]
   );
 
   const confirmPayment = useCallback(
     async (payload) => {
-      if (useLocal || !userId) {
+      if (useLocal || !accessToken) {
         throw new Error('Unable to confirm payment in offline mode.');
       }
       try {
         setStatus('updating');
         setError(null);
-        const response = await verifyRazorpayPayment(userId, payload);
+        const response = await verifyRazorpayPayment(accessToken, payload);
         setStatus('ready');
         await hydrateFromBackend();
         return response.data;
@@ -305,7 +304,7 @@ export const CartProvider = ({ children }) => {
         throw err;
       }
     },
-    [hydrateFromBackend, useLocal, userId]
+    [hydrateFromBackend, useLocal, accessToken]
   );
 
   const value = useMemo(

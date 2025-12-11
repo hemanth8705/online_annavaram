@@ -12,8 +12,6 @@ from beanie.odm.fields import PydanticObjectId
 
 from ..models import Session, User
 
-ACCESS_SECRET = os.getenv("JWT_ACCESS_SECRET")
-REFRESH_SECRET = os.getenv("JWT_REFRESH_SECRET")
 ACCESS_EXPIRY = os.getenv("JWT_ACCESS_EXPIRY", "15m")
 REFRESH_EXPIRY = os.getenv("JWT_REFRESH_EXPIRY", "7d")
 
@@ -24,7 +22,8 @@ class SessionError(Exception):
         self.status = status
 
 
-def _ensure_secret(secret: Optional[str], name: str) -> str:
+def _get_secret(name: str) -> str:
+    secret = os.getenv(name)
     if not secret:
         raise SessionError(f"{name} is not configured", status=500)
     return secret
@@ -56,7 +55,7 @@ def _hash_token(value: str) -> str:
 
 
 def _generate_refresh_token() -> str:
-    secret = _ensure_secret(REFRESH_SECRET, "JWT_REFRESH_SECRET")
+    secret = _get_secret("JWT_REFRESH_SECRET")
     random_part = secrets.token_hex(64)
     signature = hmac.new(secret.encode("utf-8"), random_part.encode("utf-8"), hashlib.sha256).hexdigest()
     return f"{random_part}.{signature}"
@@ -67,7 +66,7 @@ def _extract_refresh_components(token: str) -> str:
     if len(parts) != 2:
         raise SessionError("Invalid refresh token", status=401)
     random_part, signature = parts
-    secret = _ensure_secret(REFRESH_SECRET, "JWT_REFRESH_SECRET")
+    secret = _get_secret("JWT_REFRESH_SECRET")
     expected_signature = hmac.new(secret.encode("utf-8"), random_part.encode("utf-8"), hashlib.sha256).hexdigest()
     provided = bytes.fromhex(signature)
     expected = bytes.fromhex(expected_signature)
@@ -77,7 +76,7 @@ def _extract_refresh_components(token: str) -> str:
 
 
 def _sign_access_token(user: User, session: Session) -> tuple[str, datetime]:
-    secret = _ensure_secret(ACCESS_SECRET, "JWT_ACCESS_SECRET")
+    secret = _get_secret("JWT_ACCESS_SECRET")
     now = datetime.now(tz=timezone.utc)
     expires_at = now + ACCESS_EXPIRY_DELTA
     payload = {
@@ -92,11 +91,37 @@ def _sign_access_token(user: User, session: Session) -> tuple[str, datetime]:
 
 
 def verifyAccessToken(token: str) -> dict:
-    secret = _ensure_secret(ACCESS_SECRET, "JWT_ACCESS_SECRET")
+    secret = _get_secret("JWT_ACCESS_SECRET")
     try:
         return jwt.decode(token, secret, algorithms=["HS256"])
     except jwt.PyJWTError as exc:
         raise SessionError("Invalid or expired access token", status=401) from exc
+
+
+def _coerce_object_id(value: str | PydanticObjectId) -> PydanticObjectId:
+    if isinstance(value, PydanticObjectId):
+        return value
+    try:
+        return PydanticObjectId(value)
+    except Exception as exc:
+        raise SessionError("Session not found", status=401) from exc
+
+
+def _normalize_datetime(value: Optional[datetime]) -> Optional[datetime]:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _coerce_object_id(value: str | PydanticObjectId) -> PydanticObjectId:
+    if isinstance(value, PydanticObjectId):
+        return value
+    try:
+        return PydanticObjectId(value)
+    except Exception as exc:
+        raise SessionError("Session not found", status=401) from exc
 
 
 async def createSession(*, user: User, userAgent: Optional[str], ipAddress: Optional[str], metadata: Optional[dict] = None):
@@ -126,12 +151,15 @@ async def createSession(*, user: User, userAgent: Optional[str], ipAddress: Opti
 
 
 async def validateSession(session_id: str | PydanticObjectId, user_id: str | PydanticObjectId) -> Session:
-    session = await Session.find_one(Session.id == session_id, Session.user == user_id)
+    session_object_id = _coerce_object_id(session_id)
+    user_object_id = _coerce_object_id(user_id)
+    session = await Session.find_one(Session.id == session_object_id, Session.user == user_object_id)
     if not session:
         raise SessionError("Session not found", status=401)
     if session.revokedAt:
         raise SessionError("Session revoked", status=401)
-    if session.expiresAt < datetime.now(tz=timezone.utc):
+    expires_at = _normalize_datetime(session.expiresAt)
+    if expires_at and expires_at < datetime.now(tz=timezone.utc):
         raise SessionError("Session expired", status=401)
     return session
 
@@ -146,7 +174,8 @@ async def rotateSession(*, refreshToken: str, userAgent: Optional[str], ipAddres
     if session.revokedAt:
         raise SessionError("Session revoked", status=401)
     now = datetime.now(tz=timezone.utc)
-    if session.expiresAt < now:
+    expires_at = _normalize_datetime(session.expiresAt)
+    if expires_at and expires_at < now:
         raise SessionError("Session expired", status=401)
 
     user = await User.get(session.user)
@@ -174,7 +203,8 @@ async def rotateSession(*, refreshToken: str, userAgent: Optional[str], ipAddres
 
 
 async def revokeSession(session_id: str | PydanticObjectId) -> None:
-    await Session.find(Session.id == session_id).update({"$set": {"revokedAt": datetime.now(tz=timezone.utc)}})
+    session_object_id = _coerce_object_id(session_id)
+    await Session.find(Session.id == session_object_id).update({"$set": {"revokedAt": datetime.now(tz=timezone.utc)}})
 
 
 async def revokeByRefreshToken(refreshToken: str) -> None:
@@ -187,6 +217,7 @@ async def revokeByRefreshToken(refreshToken: str) -> None:
 
 
 async def revokeAllUserSessions(user_id: str | PydanticObjectId) -> None:
-    await Session.find(Session.user == user_id, Session.revokedAt == None).update(  # type: ignore[comparison-overlap]
+    user_object_id = _coerce_object_id(user_id)
+    await Session.find(Session.user == user_object_id, Session.revokedAt == None).update(  # type: ignore[comparison-overlap]
         {"$set": {"revokedAt": datetime.now(tz=timezone.utc)}}
     )

@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import BackgroundTasks, HTTPException, Request, Response, status
 from passlib.context import CryptContext
+import logging
 
 from ..models import Session, User
 from ..services.mailer import sendOtpEmail, sendPasswordResetEmail
@@ -19,13 +20,21 @@ from ..services.sessionService import (
     rotateSession,
 )
 
-password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+password_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
+logger = logging.getLogger(__name__)
 
 REFRESH_COOKIE_NAME = "refreshToken"
 REFRESH_COOKIE_SECURE = str(os.getenv("REFRESH_TOKEN_COOKIE_SECURE", "false")).lower() == "true"
 
 
+def _normalize_cookie_expiry(expires_at: datetime) -> datetime:
+    if expires_at.tzinfo is None:
+        return expires_at.replace(tzinfo=timezone.utc)
+    return expires_at.astimezone(timezone.utc)
+
+
 def _get_refresh_cookie_options(expires_at: datetime):
+    expires_at = _normalize_cookie_expiry(expires_at)
     is_secure = REFRESH_COOKIE_SECURE or os.getenv("NODE_ENV") == "production"
     same_site = "none" if is_secure else "lax"
     return dict(

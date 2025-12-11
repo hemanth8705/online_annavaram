@@ -4,6 +4,7 @@ python-dotenv
 motor
 pydantic[email]
 passlib[bcrypt]
+bcrypt==4.0.1
 PyJWT[crypto]
 aiofiles
 aiosmtplib

@@ -73,9 +73,9 @@ const CheckoutPage = () => {
           try {
             const verification = await confirmPayment({
               orderId: order._id,
-              razorpayOrderId: paymentResult.razorpay_order_id,
-              razorpayPaymentId: paymentResult.razorpay_payment_id,
-              razorpaySignature: paymentResult.razorpay_signature,
+              paymentId: paymentResult.razorpay_payment_id,
+              signature: paymentResult.razorpay_signature,
+              payload: paymentResult,
             });
             navigate('/order/success', {
               state: {

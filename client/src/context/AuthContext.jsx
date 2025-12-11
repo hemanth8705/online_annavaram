@@ -32,6 +32,7 @@ function normaliseUser(user) {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [accessToken, setAccessToken] = useState(null);
   const [pendingEmail, setPendingEmail] = useState(null);
   const [authStatus, setAuthStatus] = useState('idle');
   const [authError, setAuthError] = useState(null);
@@ -39,9 +40,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
+      const storedToken = localStorage.getItem('online-annavaram@access-token');
       if (stored) {
         const parsed = JSON.parse(stored);
         setUser(normaliseUser(parsed));
+      }
+      if (storedToken) {
+        setAccessToken(storedToken);
       }
     } catch (error) {
       console.warn('Failed to parse stored auth user', error);
@@ -118,8 +123,13 @@ export const AuthProvider = ({ children }) => {
       try {
         const response = await loginRequest(payload);
         const nextUser = normaliseUser(response?.data?.user);
+        const token = response?.data?.accessToken;
         setUser(nextUser);
+        setAccessToken(token);
         persistUser(nextUser);
+        if (token) {
+          localStorage.setItem('online-annavaram@access-token', token);
+        }
         setAuthStatus('idle');
         return response;
       } catch (error) {
@@ -168,13 +178,16 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(() => {
     setUser(null);
+    setAccessToken(null);
     setPendingEmail(null);
     persistUser(null);
+    localStorage.removeItem('online-annavaram@access-token');
   }, [persistUser]);
 
   const value = useMemo(
     () => ({
       user,
+      accessToken,
       pendingEmail,
       authStatus,
       authError,
@@ -189,6 +202,7 @@ export const AuthProvider = ({ children }) => {
       setPendingEmail,
     }),
     [
+      accessToken,
       authError,
       authStatus,
       login,

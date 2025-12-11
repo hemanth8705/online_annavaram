@@ -23,7 +23,7 @@ async function parseResponse(response) {
   return payload;
 }
 
-async function request(path, { method = 'GET', data, headers = {}, userId, signal } = {}) {
+async function request(path, { method = 'GET', data, headers = {}, accessToken, signal } = {}) {
   const init = {
     method,
     headers: {
@@ -38,15 +38,15 @@ async function request(path, { method = 'GET', data, headers = {}, userId, signa
     init.body = JSON.stringify(data);
   }
 
-  if (userId) {
-    init.headers['x-user-id'] = userId;
+  if (accessToken) {
+    init.headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
   const url = `${API_BASE_URL}${path}`;
   const logContext = {
     method: init.method,
     url,
-    userId,
+    hasAuth: !!accessToken,
     hasBody: typeof init.body !== 'undefined',
   };
 
@@ -98,33 +98,33 @@ export function getProductById(id, options = {}) {
   return request(`/products/${id}`, options);
 }
 
-export function getCart(userId, options = {}) {
-  return request('/cart', { ...options, userId });
+export function getCart(accessToken, options = {}) {
+  return request('/cart', { ...options, accessToken });
 }
 
-export function addCartItem(userId, payload, options = {}) {
-  return request('/cart/items', { method: 'POST', data: payload, userId, ...options });
+export function addCartItem(accessToken, payload, options = {}) {
+  return request('/cart/items', { method: 'POST', data: payload, accessToken, ...options });
 }
 
-export function updateCartItem(userId, itemId, payload, options = {}) {
+export function updateCartItem(accessToken, itemId, payload, options = {}) {
   return request(`/cart/items/${itemId}`, {
     method: 'PATCH',
     data: payload,
-    userId,
+    accessToken,
     ...options,
   });
 }
 
-export function deleteCartItem(userId, itemId, options = {}) {
-  return request(`/cart/items/${itemId}`, { method: 'DELETE', userId, ...options });
+export function deleteCartItem(accessToken, itemId, options = {}) {
+  return request(`/cart/items/${itemId}`, { method: 'DELETE', accessToken, ...options });
 }
 
-export function createOrder(userId, payload, options = {}) {
-  return request('/orders', { method: 'POST', data: payload, userId, ...options });
+export function createOrder(accessToken, payload, options = {}) {
+  return request('/orders', { method: 'POST', data: payload, accessToken, ...options });
 }
 
-export function listOrders(userId, options = {}) {
-  return request('/orders', { userId, ...options });
+export function listOrders(accessToken, options = {}) {
+  return request('/orders', { accessToken, ...options });
 }
 
 export function signup(payload, options = {}) {
@@ -151,6 +151,6 @@ export function resetPassword(payload, options = {}) {
   return request('/auth/reset-password', { method: 'POST', data: payload, ...options });
 }
 
-export function verifyRazorpayPayment(userId, payload, options = {}) {
-  return request('/payments/razorpay/verify', { method: 'POST', data: payload, userId, ...options });
+export function verifyRazorpayPayment(accessToken, payload, options = {}) {
+  return request('/payments/razorpay/verify', { method: 'POST', data: payload, accessToken, ...options });
 }

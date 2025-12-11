@@ -41,9 +41,22 @@ def _generate_otp() -> str:
     return f"{random.randint(start, end)}"
 
 
+def _normalize_datetime(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _optional_normalize(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    return _normalize_datetime(dt)
+
+
 def _purge_history(history: Iterable[datetime]) -> List[datetime]:
     cutoff = datetime.now(tz=timezone.utc) - timedelta(days=1)
-    return [entry for entry in history if entry > cutoff]
+    normalized = [_normalize_datetime(entry) for entry in history if entry]
+    return [entry for entry in normalized if entry > cutoff]
 
 
 async def assignOtp(user: User, bucketKey: str = "emailVerification"):
@@ -75,7 +88,8 @@ async def verifyOtp(user: User, bucketKey: str, otp: str) -> bool:
     if bucket.attempts >= OTP_MAX_ATTEMPTS:
         raise OtpServiceError("Maximum OTP attempts exceeded. Request a new code.", status=429)
 
-    if not bucket.otpExpiresAt or bucket.otpExpiresAt < datetime.now(tz=timezone.utc):
+    otp_expires = _optional_normalize(bucket.otpExpiresAt)
+    if not otp_expires or otp_expires < datetime.now(tz=timezone.utc):
         raise OtpServiceError("OTP has expired. Request a new code.")
 
     if not bcrypt.verify(otp, bucket.otpHash):

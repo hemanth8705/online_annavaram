@@ -22,7 +22,7 @@ ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 if ENV_PATH.exists():
     load_dotenv(ENV_PATH)
 
-password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+password_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
 
 
 async def clear_collections():
@@ -40,7 +40,7 @@ async def seed_data():
 
     admin_user = User(
         fullName="Online Annavaram Admin",
-        email="admin@onlineannavaram.test",
+        email="admin@onlineannavaram.com",
         passwordHash=password_hash,
         role="admin",
         phone="9999999900",
@@ -113,10 +113,11 @@ async def seed_data():
 
     total_amount = sum(item.priceAtAddition * item.quantity for item in cart_items)
 
+    primary_address = customer_user.addresses[0].model_dump()
     shipping_address = {
         "name": customer_user.fullName,
         "phone": customer_user.phone,
-        **customer_user.addresses[0],
+        **primary_address,
     }
 
     order = Order(
@@ -186,19 +187,18 @@ async def run_checks(context):
     )
 
     cart_items = await CartItem.find(CartItem.cart == context["cart"].id).to_list()
-    print(
-        f"Cart {context['cart'].id} items:",
-        [
+    product_lookup = {str(p.id): p for p in context["products"]}
+    cart_snapshot = []
+    for item in cart_items:
+        product = product_lookup.get(str(item.product))
+        cart_snapshot.append(
             {
-                "product": (
-                    next((p for p in context["products"] if p.id == item.product)).name
-                ),
+                "product": product.name if product else str(item.product),
                 "quantity": item.quantity,
                 "pricePaise": item.priceAtAddition,
             }
-            for item in cart_items
-        ],
-    )
+        )
+    print(f"Cart {context['cart'].id} items:", cart_snapshot)
 
     orders = await Order.find(Order.user == context["customerUser"].id).to_list()
     print(
