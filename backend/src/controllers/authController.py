@@ -9,6 +9,7 @@ from passlib.context import CryptContext
 import logging
 
 from ..models import Session, User
+from ..models.User import Address
 from ..services.mailer import sendOtpEmail, sendPasswordResetEmail
 from ..services.otpService import OTP_EXPIRY_MINUTES, assignOtp, verifyOtp, OtpServiceError
 from ..services.sessionService import (
@@ -47,6 +48,25 @@ def _get_refresh_cookie_options(expires_at: datetime):
 
 
 def _serialize_user(user: User) -> dict:
+    addresses = []
+    for idx, addr in enumerate(user.addresses or []):
+        addr_id = getattr(addr, "id", None) or f"addr-{idx}"
+        addr.id = addr_id  # type: ignore[attr-defined]
+        addresses.append(
+            {
+                "id": addr_id,
+                "label": getattr(addr, "label", None),
+                "contactName": getattr(addr, "contactName", None),
+                "phone": getattr(addr, "phone", None),
+                "line1": addr.line1,
+                "line2": addr.line2,
+                "city": addr.city,
+                "state": addr.state,
+                "postalCode": addr.postalCode,
+                "country": addr.country,
+            }
+        )
+
     return {
         "id": str(user.id),
         "fullName": user.fullName,
@@ -54,6 +74,7 @@ def _serialize_user(user: User) -> dict:
         "phone": user.phone,
         "role": user.role,
         "emailVerified": user.emailVerified,
+        "addresses": addresses,
         "createdAt": user.createdAt.isoformat() if user.createdAt else None,
         "updatedAt": user.updatedAt.isoformat() if user.updatedAt else None,
     }
@@ -96,6 +117,13 @@ def _build_auth_response(*, user: User, access_token: str, access_expires: datet
             "user": _serialize_user(user),
         },
     }
+
+
+def _find_address(user: User, address_id: str) -> Optional[Address]:
+    for address in user.addresses:
+        if getattr(address, "id", None) == address_id:
+            return address
+    return None
 
 
 async def signup(*, fullName: str, email: str, password: str, phone: Optional[str], response: Response, background: BackgroundTasks):
@@ -314,3 +342,56 @@ async def currentUser(*, request: Request):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     return {"success": True, "data": {"user": _serialize_user(user)}}
+
+
+async def listAddresses(*, request: Request):
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    return {"success": True, "data": {"addresses": _serialize_user(user)["addresses"]}}
+
+
+async def addAddress(*, request: Request, payload: dict):
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+    if len(user.addresses) >= 5:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Maximum of 5 addresses allowed.")
+
+    address = Address(**payload)
+    if not address.phone:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Phone is required.")
+    user.addresses.append(address)
+    await user.save()
+    return {"success": True, "data": {"addresses": _serialize_user(user)["addresses"]}}
+
+
+async def updateAddress(*, request: Request, address_id: str, payload: dict):
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+    address = _find_address(user, address_id)
+    if not address:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Address not found.")
+
+    for key, value in payload.items():
+        setattr(address, key, value)
+    if not getattr(address, "phone", None):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Phone is required.")
+    await user.save()
+    return {"success": True, "data": {"addresses": _serialize_user(user)["addresses"]}}
+
+
+async def deleteAddress(*, request: Request, address_id: str):
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+    before = len(user.addresses)
+    user.addresses = [addr for addr in user.addresses if getattr(addr, "id", None) != address_id]
+    if len(user.addresses) == before:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Address not found.")
+    await user.save()
+    return {"success": True, "data": {"addresses": _serialize_user(user)["addresses"]}}

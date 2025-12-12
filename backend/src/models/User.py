@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Optional, Literal
+from uuid import uuid4
 
 from beanie import Indexed
 from beanie.odm.fields import PydanticObjectId
@@ -11,7 +12,10 @@ from .base import TimeStampedDocument
 
 
 class Address(BaseModel):
+    id: str = Field(default_factory=lambda: uuid4().hex)
     label: Optional[str] = None
+    contactName: Optional[str] = None
+    phone: Optional[str] = None
     line1: str
     line2: Optional[str] = None
     city: str

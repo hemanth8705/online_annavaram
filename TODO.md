@@ -11,8 +11,8 @@
 - [x] Require authentication before adding items to the cart; redirect unauthenticated attempts to login/signup.
 
 ## P1 – Checkout experience & address handling
-- [ ] Auto-load saved address/contact from DB during checkout; prefill with signup info if no record exists.
-- [ ] Support multiple saved addresses during checkout.
+- [x] Auto-load saved address/contact from DB during checkout; prefill with signup info if no record exists.
+- [x] Support multiple saved addresses during checkout.
 - [ ] Provide city search suggestions plus state and pincode capture while entering the address.
 - [ ] Show a toast message “Added to cart” when items are added.
 

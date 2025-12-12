@@ -10,13 +10,27 @@ async function parseResponse(response) {
   const payload = isJSON ? await response.json() : await response.text();
 
   if (!response.ok) {
-    const message =
-      typeof payload === 'object' && payload?.message
-        ? payload.message
-        : `Request failed with status ${response.status}`;
+    let message = typeof payload === 'object' && payload?.message
+      ? payload.message
+      : `Request failed with status ${response.status}`;
+    
+    // User-friendly error messages
+    if (response.status === 401) {
+      message = 'Your session has expired. Please log in again to continue.';
+    } else if (response.status === 403) {
+      message = 'You do not have permission to perform this action.';
+    } else if (response.status === 404) {
+      message = 'The requested resource was not found.';
+    } else if (response.status === 421) {
+      message = 'Request format is incorrect. Please refresh the page and try again.';
+    } else if (response.status >= 500) {
+      message = 'Server error occurred. Please try again later.';
+    }
+    
     const error = new Error(message);
     error.status = response.status;
     error.details = typeof payload === 'object' ? payload : undefined;
+    error.requiresAuth = response.status === 401;
     throw error;
   }
 
@@ -42,7 +56,9 @@ async function request(path, { method = 'GET', data, headers = {}, accessToken, 
     init.headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
-  const url = `${API_BASE_URL}${path}`;
+  // Normalize path - remove trailing slashes to prevent 401 errors
+  const normalizedPath = path.replace(/\/+$/, '');
+  const url = `${API_BASE_URL}${normalizedPath}`;
   const logContext = {
     method: init.method,
     url,
@@ -141,6 +157,27 @@ export function resendOtp(payload, options = {}) {
 
 export function login(payload, options = {}) {
   return request('/auth/login', { method: 'POST', data: payload, ...options });
+}
+
+export function listAddresses(accessToken, options = {}) {
+  return request('/auth/addresses', { accessToken, ...options });
+}
+
+export function createAddress(accessToken, payload, options = {}) {
+  return request('/auth/addresses', { method: 'POST', data: payload, accessToken, ...options });
+}
+
+export function updateAddress(accessToken, addressId, payload, options = {}) {
+  return request(`/auth/addresses/${addressId}`, {
+    method: 'PUT',
+    data: payload,
+    accessToken,
+    ...options,
+  });
+}
+
+export function deleteAddress(accessToken, addressId, options = {}) {
+  return request(`/auth/addresses/${addressId}`, { method: 'DELETE', accessToken, ...options });
 }
 
 export function requestPasswordReset(payload, options = {}) {

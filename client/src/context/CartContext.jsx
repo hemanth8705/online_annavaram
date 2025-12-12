@@ -8,6 +8,7 @@ import {
   verifyRazorpayPayment,
 } from '../lib/apiClient';
 import useAuth from '../hooks/useAuth';
+import { useToast } from './ToastContext';
 
 const CartContext = createContext(undefined);
 
@@ -95,6 +96,7 @@ const EMPTY_CART = { items: [], totals: { quantity: 0, amount: 0 }, status: 'act
 
 export const CartProvider = ({ children }) => {
   const { user, accessToken, hydrated } = useAuth();
+  const { showToast } = useToast();
   const [cart, setCart] = useState(EMPTY_CART);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
@@ -186,11 +188,17 @@ export const CartProvider = ({ children }) => {
           });
           setCart(normaliseCart(response));
           setStatus('ready');
+          showToast(`Added ${product.name} to cart`, 'success');
           return;
         } catch (err) {
           console.warn('addItem falling back to local cart', err);
           setUseLocal(true);
           setError(err);
+          if (err.status === 401) {
+            showToast(err.message || 'Session expired. Please log in again.', 'error');
+          } else {
+            showToast(err.message || 'Failed to add to cart', 'error');
+          }
         }
       }
 
@@ -233,11 +241,21 @@ export const CartProvider = ({ children }) => {
           const response = await updateCartItem(accessToken, itemId, { quantity });
           setCart(normaliseCart(response));
           setStatus('ready');
+          if (quantity === 0) {
+            showToast('Item removed from cart', 'info');
+          } else {
+            showToast('Cart updated', 'success');
+          }
           return;
         } catch (err) {
           console.warn('updateItemQuantity falling back to local cart', err);
           setUseLocal(true);
           setError(err);
+          if (err.status === 401) {
+            showToast(err.message || 'Session expired. Please log in again.', 'error');
+          } else {
+            showToast(err.message || 'Failed to update cart', 'error');
+          }
         }
       }
 
@@ -247,7 +265,7 @@ export const CartProvider = ({ children }) => {
           .filter((item) => item.quantity > 0)
       );
     },
-    [applyLocalUpdate, useLocal, accessToken]
+    [applyLocalUpdate, useLocal, accessToken, showToast]
   );
 
   const removeItem = useCallback(
@@ -259,17 +277,23 @@ export const CartProvider = ({ children }) => {
           const response = await deleteCartItem(accessToken, itemId);
           setCart(normaliseCart(response));
           setStatus('ready');
+          showToast('Item removed from cart', 'info');
           return;
         } catch (err) {
           console.warn('removeItem falling back to local cart', err);
           setUseLocal(true);
           setError(err);
+          if (err.status === 401) {
+            showToast(err.message || 'Session expired. Please log in again.', 'error');
+          } else {
+            showToast(err.message || 'Failed to remove item', 'error');
+          }
         }
       }
 
       applyLocalUpdate((items) => items.filter((item) => item.id !== itemId));
     },
-    [applyLocalUpdate, useLocal, accessToken]
+    [applyLocalUpdate, useLocal, accessToken, showToast]
   );
 
   const clearCart = useCallback(() => {

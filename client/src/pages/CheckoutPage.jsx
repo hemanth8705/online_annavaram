@@ -1,12 +1,19 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import useCart from '../hooks/useCart';
 import useAuth from '../hooks/useAuth';
 import { formatCurrency } from '../lib/formatters';
+import {
+  createAddress,
+  deleteAddress as deleteAddressRequest,
+  listAddresses,
+  updateAddress as updateAddressRequest,
+} from '../lib/apiClient';
+import { INDIAN_STATES, CITIES_BY_STATE, COUNTRIES } from '../data/locations';
 
-const initialFormState = {
-  name: '',
+const initialAddressState = {
+  contactName: '',
   phone: '',
   line1: '',
   line2: '',
@@ -14,8 +21,9 @@ const initialFormState = {
   state: '',
   postalCode: '',
   country: 'IN',
-  notes: '',
 };
+
+const initialFormState = { ...initialAddressState, notes: '' };
 
 const loadRazorpayScript = () =>
   new Promise((resolve) => {
@@ -36,29 +44,79 @@ const CheckoutPage = () => {
   const { cart, placeOrder, confirmPayment, useLocal } = useCart();
   const { user, accessToken, hydrated } = useAuth();
   const [formValues, setFormValues] = useState(initialFormState);
+  const [addressForm, setAddressForm] = useState(initialAddressState);
+  const [availableCities, setAvailableCities] = useState([]);
+  const [stateSearch, setStateSearch] = useState('');
+  const [citySearch, setCitySearch] = useState('');
+  const [addresses, setAddresses] = useState([]);
+  const [addressStatus, setAddressStatus] = useState('idle');
+  const [addressError, setAddressError] = useState(null);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [addressFormMode, setAddressFormMode] = useState('create');
+  const [editingAddressId, setEditingAddressId] = useState(null);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
 
   const isCartEmpty = cart.items.length === 0;
 
-  if (!hydrated) {
-    return null;
-  }
+  // All hooks must be called before any conditional returns
+  const hydrateAddresses = useCallback(async () => {
+    if (!accessToken) return;
+    setAddressStatus('loading');
+    setAddressError(null);
+    try {
+      const response = await listAddresses(accessToken);
+      const list = response?.data?.addresses || [];
+      setAddresses(list);
+      if (list.length > 0) {
+        setSelectedAddressId(list[0].id);
+        setAddressForm(initialAddressState);
+        setAddressFormMode('create');
+        setEditingAddressId(null);
+      }
+    } catch (err) {
+      console.warn('Failed to load addresses', err);
+      setAddressError(err);
+    } finally {
+      setAddressStatus('ready');
+    }
+  }, [accessToken]);
 
-  if (!accessToken) {
-    return (
-      <Navigate
-        to="/auth/login"
-        replace
-        state={{ from: `${location.pathname}${location.search}` }}
-      />
+  useEffect(() => {
+    if (hydrated && accessToken) {
+      hydrateAddresses();
+    }
+  }, [accessToken, hydrateAddresses, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated || !user) return;
+    if (addresses.length === 0) {
+      setAddressForm((prev) => ({
+        ...prev,
+        contactName: prev.contactName || user.fullName || '',
+        phone: prev.phone || user.phone || '',
+      }));
+    }
+  }, [addresses.length, hydrated, user]);
+
+  const selectedAddress = useMemo(
+    () => addresses.find((item) => item.id === selectedAddressId) || null,
+    [addresses, selectedAddressId]
+  );
+
+  const filteredStates = useMemo(() => {
+    if (!stateSearch) return INDIAN_STATES;
+    return INDIAN_STATES.filter(state => 
+      state.toLowerCase().includes(stateSearch.toLowerCase())
     );
-  }
+  }, [stateSearch]);
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFormValues((prev) => ({ ...prev, [name]: value }));
-  };
+  const filteredCities = useMemo(() => {
+    if (!citySearch) return availableCities;
+    return availableCities.filter(city =>
+      city.toLowerCase().includes(citySearch.toLowerCase())
+    );
+  }, [citySearch, availableCities]);
 
   const openRazorpayCheckout = useCallback(
     async ({ orderResponse, payload }) => {
@@ -127,6 +185,108 @@ const CheckoutPage = () => {
     [confirmPayment, navigate, user?.email]
   );
 
+  // Early returns AFTER all hooks to comply with Rules of Hooks
+  if (!hydrated) {
+    return null;
+  }
+
+  if (!accessToken) {
+    return (
+      <Navigate
+        to="/auth/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}` }}
+      />
+    );
+  }
+
+  // Event handlers
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormValues((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddressFormChange = (event) => {
+    const { name, value } = event.target;
+    setAddressForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleStateChange = (selectedState) => {
+    setAddressForm((prev) => ({ ...prev, state: selectedState, city: '' }));
+    setAvailableCities(CITIES_BY_STATE[selectedState] || []);
+    setStateSearch('');
+    setCitySearch('');
+  };
+
+  const startAddAddress = () => {
+    setAddressForm(initialAddressState);
+    setAddressFormMode('create');
+    setEditingAddressId(null);
+  };
+
+  const startEditAddress = (addressId) => {
+    const addr = addresses.find((item) => item.id === addressId);
+    if (!addr) return;
+    setAddressForm({
+      contactName: addr.contactName || '',
+      phone: addr.phone || '',
+      line1: addr.line1 || '',
+      line2: addr.line2 || '',
+      city: addr.city || '',
+      state: addr.state || '',
+      postalCode: addr.postalCode || '',
+      country: addr.country || 'IN',
+    });
+    setAddressFormMode('edit');
+    setEditingAddressId(addressId);
+  };
+
+  const handleAddressSubmit = async (event) => {
+    event.preventDefault();
+    if (!accessToken) return;
+    setAddressStatus('saving');
+    setAddressError(null);
+    try {
+      let response;
+      if (addressFormMode === 'edit' && editingAddressId) {
+        response = await updateAddressRequest(accessToken, editingAddressId, addressForm);
+      } else {
+        response = await createAddress(accessToken, addressForm);
+      }
+      const list = response?.data?.addresses || [];
+      setAddresses(list);
+      const newSelected = addressFormMode === 'edit' ? editingAddressId : list[list.length - 1]?.id;
+      setSelectedAddressId(newSelected || list[0]?.id || null);
+      setAddressForm(initialAddressState);
+      setAddressFormMode('create');
+      setEditingAddressId(null);
+    } catch (err) {
+      console.warn('Save address failed', err);
+      setAddressError(err);
+    } finally {
+      setAddressStatus('ready');
+    }
+  };
+
+  const handleDeleteAddress = async (addressId) => {
+    if (!accessToken) return;
+    setAddressStatus('deleting');
+    setAddressError(null);
+    try {
+      const response = await deleteAddressRequest(accessToken, addressId);
+      const list = response?.data?.addresses || [];
+      setAddresses(list);
+      if (selectedAddressId === addressId) {
+        setSelectedAddressId(list[0]?.id || null);
+      }
+    } catch (err) {
+      console.warn('Delete address failed', err);
+      setAddressError(err);
+    } finally {
+      setAddressStatus('ready');
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (isCartEmpty) {
@@ -136,16 +296,18 @@ const CheckoutPage = () => {
     setStatus('submitting');
     setError(null);
 
+    const activeAddress = selectedAddress || addressForm;
+
     const payload = {
       shippingAddress: {
-        name: formValues.name,
-        phone: formValues.phone,
-        line1: formValues.line1,
-        line2: formValues.line2,
-        city: formValues.city,
-        state: formValues.state,
-        postalCode: formValues.postalCode,
-        country: formValues.country,
+        name: activeAddress.contactName || formValues.name,
+        phone: activeAddress.phone || formValues.phone,
+        line1: activeAddress.line1 || formValues.line1,
+        line2: activeAddress.line2 || formValues.line2,
+        city: activeAddress.city || formValues.city,
+        state: activeAddress.state || formValues.state,
+        postalCode: activeAddress.postalCode || formValues.postalCode,
+        country: activeAddress.country || formValues.country || 'IN',
       },
       notes: formValues.notes,
     };
@@ -197,14 +359,97 @@ const CheckoutPage = () => {
             <div className="checkout-grid">
               <form className="checkout-form" onSubmit={handleSubmit}>
                 <fieldset>
-                  <legend>Shipping Information</legend>
+                  <legend>Saved Addresses</legend>
+                  {addressError && (
+                    <div className="address-error">
+                      <strong>Error:</strong> {addressError.message || 'Unable to load your addresses.'}
+                      {addressError.requiresAuth && (
+                        <button
+                          type="button"
+                          onClick={() => navigate('/auth/login', { state: { from: '/checkout' } })}
+                          className="btn btn-sm btn-primary"
+                          style={{ marginLeft: '1rem' }}
+                        >
+                          Log In Again
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {addresses.length === 0 && (
+                    <div className="empty-state">
+                      <h3>No saved addresses</h3>
+                      <p>Add your delivery details to reuse them next time.</p>
+                    </div>
+                  )}
+                  <div className="address-grid">
+                    {addresses.map((addr) => {
+                      const isSelected = addr.id === selectedAddressId;
+                      return (
+                        <label
+                          key={addr.id}
+                          className={`address-card ${isSelected ? 'address-card--selected' : ''}`}
+                        >
+                          <div className="address-card__header">
+                            <input
+                              type="radio"
+                              name="selectedAddress"
+                              checked={isSelected}
+                              onChange={() => setSelectedAddressId(addr.id)}
+                            />
+                            <div>
+                              <strong>{addr.contactName || 'Saved Address'}</strong>
+                              <div className="address-card__meta">{addr.phone}</div>
+                            </div>
+                          </div>
+                          <div className="address-card__body">
+                            <div>{addr.line1}</div>
+                            {addr.line2 && <div>{addr.line2}</div>}
+                            <div>
+                              {addr.city}, {addr.state} {addr.postalCode}
+                            </div>
+                            <div>{addr.country}</div>
+                          </div>
+                          <div className="address-card__actions">
+                            <button type="button" className="btn btn-secondary" onClick={() => startEditAddress(addr.id)}>
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-outline"
+                              onClick={() => handleDeleteAddress(addr.id)}
+                              disabled={addressStatus === 'deleting'}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className="address-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={startAddAddress}
+                      disabled={addresses.length >= 5 || addressStatus === 'loading'}
+                    >
+                      Add Address
+                    </button>
+                    {addresses.length >= 5 && (
+                      <span className="form-hint">You can store up to 5 addresses.</span>
+                    )}
+                  </div>
+                </fieldset>
+
+                <fieldset>
+                  <legend>{addressFormMode === 'edit' ? 'Edit Address' : 'Add Address'}</legend>
                   <div className="form-field">
-                    <label htmlFor="name">Full Name</label>
+                    <label htmlFor="contactName">Full Name</label>
                     <input
-                      id="name"
-                      name="name"
-                      value={formValues.name}
-                      onChange={handleChange}
+                      id="contactName"
+                      name="contactName"
+                      value={addressForm.contactName}
+                      onChange={handleAddressFormChange}
                       required
                     />
                   </div>
@@ -213,8 +458,8 @@ const CheckoutPage = () => {
                     <input
                       id="phone"
                       name="phone"
-                      value={formValues.phone}
-                      onChange={handleChange}
+                      value={addressForm.phone}
+                      onChange={handleAddressFormChange}
                       required
                     />
                   </div>
@@ -223,8 +468,8 @@ const CheckoutPage = () => {
                     <input
                       id="line1"
                       name="line1"
-                      value={formValues.line1}
-                      onChange={handleChange}
+                      value={addressForm.line1}
+                      onChange={handleAddressFormChange}
                       required
                     />
                   </div>
@@ -233,29 +478,84 @@ const CheckoutPage = () => {
                     <input
                       id="line2"
                       name="line2"
-                      value={formValues.line2}
-                      onChange={handleChange}
+                      value={addressForm.line2}
+                      onChange={handleAddressFormChange}
                     />
                   </div>
                   <div className="form-field">
-                    <label htmlFor="city">City</label>
-                    <input
-                      id="city"
-                      name="city"
-                      value={formValues.city}
-                      onChange={handleChange}
-                      required
-                    />
+                    <label htmlFor="state">State/Province *</label>
+                    <div className="searchable-select">
+                      <input
+                        type="text"
+                        placeholder="Search or select state..."
+                        value={stateSearch || addressForm.state}
+                        onChange={(e) => {
+                          setStateSearch(e.target.value);
+                          if (!e.target.value) {
+                            setAddressForm(prev => ({ ...prev, state: '', city: '' }));
+                            setAvailableCities([]);
+                          }
+                        }}
+                        onFocus={() => setStateSearch('')}
+                        className="search-input"
+                        required
+                      />
+                      {stateSearch && filteredStates.length > 0 && (
+                        <div className="dropdown-list">
+                          {filteredStates.map((state) => (
+                            <div
+                              key={state}
+                              className="dropdown-item"
+                              onClick={() => handleStateChange(state)}
+                            >
+                              {state}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="form-field">
-                    <label htmlFor="state">State</label>
-                    <input
-                      id="state"
-                      name="state"
-                      value={formValues.state}
-                      onChange={handleChange}
-                      required
-                    />
+                    <label htmlFor="city">City *</label>
+                    <div className="searchable-select">
+                      <input
+                        type="text"
+                        placeholder={availableCities.length > 0 ? "Search or select city..." : "Select state first"}
+                        value={citySearch || addressForm.city}
+                        onChange={(e) => {
+                          setCitySearch(e.target.value);
+                          if (!e.target.value) {
+                            setAddressForm(prev => ({ ...prev, city: '' }));
+                          }
+                        }}
+                        onFocus={() => setCitySearch('')}
+                        onBlur={(e) => {
+                          // Allow manual entry if city not in list
+                          if (e.target.value && !availableCities.includes(e.target.value)) {
+                            setAddressForm(prev => ({ ...prev, city: e.target.value }));
+                          }
+                        }}
+                        disabled={!addressForm.state}
+                        className="search-input"
+                        required
+                      />
+                      {citySearch && filteredCities.length > 0 && (
+                        <div className="dropdown-list">
+                          {filteredCities.map((city) => (
+                            <div
+                              key={city}
+                              className="dropdown-item"
+                              onClick={() => {
+                                setAddressForm(prev => ({ ...prev, city }));
+                                setCitySearch('');
+                              }}
+                            >
+                              {city}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="form-field inline">
                     <div>
@@ -263,21 +563,37 @@ const CheckoutPage = () => {
                       <input
                         id="postalCode"
                         name="postalCode"
-                        value={formValues.postalCode}
-                        onChange={handleChange}
+                        value={addressForm.postalCode}
+                        onChange={handleAddressFormChange}
                         required
                       />
                     </div>
                     <div>
                       <label htmlFor="country">Country</label>
-                      <input
+                      <select
                         id="country"
                         name="country"
-                        value={formValues.country}
-                        onChange={handleChange}
+                        value={addressForm.country}
+                        onChange={handleAddressFormChange}
                         required
-                      />
+                      >
+                        {COUNTRIES.map((country) => (
+                          <option key={country.code} value={country.code}>
+                            {country.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
+                  </div>
+                  <div className="address-actions">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleAddressSubmit}
+                      disabled={addressStatus === 'saving' || addresses.length >= 5 && addressFormMode !== 'edit'}
+                    >
+                      {addressFormMode === 'edit' ? 'Save Changes' : 'Save Address'}
+                    </button>
                   </div>
                 </fieldset>
 
@@ -305,7 +621,7 @@ const CheckoutPage = () => {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={status === 'submitting' || isCartEmpty}
+                  disabled={status === 'submitting' || isCartEmpty || addressStatus === 'saving'}
                 >
                   {status === 'submitting' ? 'Processing...' : 'Place Order'}
                 </button>
