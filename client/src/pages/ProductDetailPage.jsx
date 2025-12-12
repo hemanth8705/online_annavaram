@@ -9,6 +9,7 @@ import { FALLBACK_PRODUCTS } from '../config/site';
 import { formatCurrency } from '../lib/formatters';
 import useCart from '../hooks/useCart';
 import useAuth from '../hooks/useAuth';
+import useWishlist from '../hooks/useWishlist';
 
 const ProductDetailPage = () => {
   const { productId } = useParams();
@@ -16,6 +17,7 @@ const ProductDetailPage = () => {
   const navigate = useNavigate();
   const { addItem } = useCart();
   const { accessToken, hydrated } = useAuth();
+  const { toggleWishlist, isWishlisted } = useWishlist();
   const [product, setProduct] = useState(null);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
@@ -63,6 +65,7 @@ const ProductDetailPage = () => {
     () => product?.images?.[0] || '/images/placeholder-product.jpg',
     [product]
   );
+  const wishlisted = isWishlisted(product);
 
   const handleAddToCart = async () => {
     console.log('[ProductDetail] add to cart clicked', { productId, quantity });
@@ -75,6 +78,11 @@ const ProductDetailPage = () => {
     }
     await addItem(product, quantity);
     navigate('/cart', { state: { from: `/products/${productId}` } });
+  };
+
+  const handleToggleWishlist = () => {
+    if (!product) return;
+    toggleWishlist(product);
   };
 
   return (
@@ -115,6 +123,13 @@ const ProductDetailPage = () => {
                   <QuantityInput value={quantity} onChange={setQuantity} min={1} max={10} />
                   <button type="button" className="btn btn-primary" onClick={handleAddToCart}>
                     Add to Cart
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-outline ${wishlisted ? 'btn-outline--active' : ''}`}
+                    onClick={handleToggleWishlist}
+                  >
+                    {wishlisted ? 'Wishlisted' : 'Add to Wishlist'}
                   </button>
                 </div>
 

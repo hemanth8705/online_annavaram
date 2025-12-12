@@ -4,6 +4,7 @@ import { formatCurrency } from '../../lib/formatters';
 import QuantityInput from '../common/QuantityInput';
 import useCart from '../../hooks/useCart';
 import useAuth from '../../hooks/useAuth';
+import useWishlist from '../../hooks/useWishlist';
 
 function resolveProductId(product = {}) {
   const rawId =
@@ -20,6 +21,7 @@ const ProductCard = ({ product }) => {
   const location = useLocation();
   const { cart, addItem, updateItemQuantity } = useCart();
   const { accessToken, hydrated } = useAuth();
+  const { isWishlisted, toggleWishlist } = useWishlist();
 
   const productId = resolveProductId(product);
   const price = formatCurrency(product.price);
@@ -69,12 +71,24 @@ const ProductCard = ({ product }) => {
   };
 
   const productLink = productId ? `/products/${productId}` : '/products';
+  const wishlisted = isWishlisted(product);
 
   return (
     <article className="product-card" data-testid={`product-${productId || product.name}`}>
-      <Link to={productLink} aria-label={product.name}>
-        <img src={imageSrc} alt={product.name} className="product-img" />
-      </Link>
+      <div className="product-card__image-wrap">
+        <Link to={productLink} aria-label={product.name}>
+          <img src={imageSrc} alt={product.name} className="product-img" />
+        </Link>
+        <button
+          type="button"
+          className={`wishlist-heart ${wishlisted ? 'wishlist-heart--active' : ''}`}
+          aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+          onClick={() => toggleWishlist(product)}
+          disabled={!hydrated}
+        >
+          {wishlisted ? '♥' : '♡'}
+        </button>
+      </div>
       <div className="product-info">
         <span className="product-category">{product.category}</span>
         <h3 className="product-name">

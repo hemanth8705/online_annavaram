@@ -11,6 +11,7 @@ export const SITE_CONTENT = {
     { label: 'Shop All', to: '/products' },
     { label: 'My Cart', to: '/cart' },
     { label: 'Checkout', to: '/checkout' },
+    { label: 'Wishlist', to: '/wishlist' },
   ],
   productSections: [
     {

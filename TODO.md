@@ -23,7 +23,7 @@
 
 ## P3 – User features
 - [ ] Add a profile page for users to view order history.
-- [ ] Add a wishlist feature.
+- [x] Add a wishlist feature.
 - [ ] Add user reviews and ratings for products.
 - [ ] Implement product filtering and sorting options.
 
