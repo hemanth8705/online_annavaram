@@ -4,7 +4,7 @@ import Layout from '../components/layout/Layout';
 import LoadingState from '../components/common/LoadingState';
 import ErrorMessage from '../components/common/ErrorMessage';
 import QuantityInput from '../components/common/QuantityInput';
-import { getProductById } from '../lib/apiClient';
+import { getProductById, getProductReviews, createReview } from '../lib/apiClient';
 import { FALLBACK_PRODUCTS } from '../config/site';
 import { formatCurrency } from '../lib/formatters';
 import useCart from '../hooks/useCart';
@@ -16,12 +16,17 @@ const ProductDetailPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { addItem } = useCart();
-  const { accessToken, hydrated } = useAuth();
+  const { accessToken, hydrated, user } = useAuth();
   const { toggleWishlist, isWishlisted } = useWishlist();
   const [product, setProduct] = useState(null);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  const [reviews, setReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState({ averageRating: 0, totalReviews: 0 });
+  const [reviewStatus, setReviewStatus] = useState('idle');
+  const [reviewError, setReviewError] = useState(null);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' });
 
   useEffect(() => {
     let mounted = true;
@@ -61,6 +66,29 @@ const ProductDetailPage = () => {
     };
   }, [productId]);
 
+  const loadReviews = async (id) => {
+    if (!id) return;
+    setReviewStatus('loading');
+    setReviewError(null);
+    try {
+      const response = await getProductReviews(id, { limit: 20 });
+      const data = response?.data || {};
+      setReviews(data.reviews || []);
+      setReviewStats(data.stats || { averageRating: 0, totalReviews: 0 });
+    } catch (err) {
+      console.warn('Failed to load reviews', err);
+      setReviewError(err);
+    } finally {
+      setReviewStatus('ready');
+    }
+  };
+
+  useEffect(() => {
+    if (product?._id || product?.id) {
+      loadReviews(product._id || product.id);
+    }
+  }, [product?._id, product?.id]);
+
   const image = useMemo(
     () => product?.images?.[0] || '/images/placeholder-product.jpg',
     [product]
@@ -85,6 +113,36 @@ const ProductDetailPage = () => {
     toggleWishlist(product);
   };
 
+  const handleReviewChange = (event) => {
+    const { name, value } = event.target;
+    setReviewForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleReviewSubmit = async (event) => {
+    event.preventDefault();
+    if (!accessToken) {
+      navigate('/auth/login', { state: { from: location.pathname } });
+      return;
+    }
+    setReviewStatus('saving');
+    setReviewError(null);
+    try {
+      await createReview(accessToken, {
+        productId: product._id || product.id,
+        rating: Number(reviewForm.rating),
+        title: reviewForm.title,
+        comment: reviewForm.comment,
+      });
+      setReviewForm({ rating: 5, title: '', comment: '' });
+      await loadReviews(product._id || product.id);
+    } catch (err) {
+      console.warn('Failed to submit review', err);
+      setReviewError(err);
+    } finally {
+      setReviewStatus('ready');
+    }
+  };
+
   return (
     <Layout>
       <section className="section">
@@ -103,7 +161,7 @@ const ProductDetailPage = () => {
             />
           )}
 
-          {(status === 'ready' || status === 'fallback') && product && (
+            {(status === 'ready' || status === 'fallback') && product && (
             <div className="product-detail__grid">
               <div className="product-detail__image">
                 <img src={image} alt={product.name} />
@@ -145,6 +203,94 @@ const ProductDetailPage = () => {
                     <strong>Packed in:</strong> Food-safe, tamper-proof boxes.
                   </li>
                 </ul>
+              </div>
+            </div>
+          )}
+          {(status === 'ready' || status === 'fallback') && (
+            <div className="reviews-section">
+              <header className="reviews-header">
+                <div>
+                  <h2>Customer Reviews</h2>
+                  <p>
+                    {reviewStats.totalReviews > 0
+                      ? `${reviewStats.averageRating}★ average from ${reviewStats.totalReviews} review${reviewStats.totalReviews > 1 ? 's' : ''}`
+                      : 'No reviews yet'}
+                  </p>
+                </div>
+              </header>
+
+              {reviewError && (
+                <p className="form-error">
+                  {reviewError.message || 'Unable to load reviews. Please try again.'}
+                </p>
+              )}
+
+              {reviews.length === 0 && <p className="empty-state">No reviews yet. Be the first to share your experience.</p>}
+
+              {reviews.length > 0 && (
+                <ul className="reviews-list">
+                  {reviews.map((rev) => (
+                    <li key={rev.id} className="review-card">
+                      <div className="review-card__header">
+                        <div className="review-rating">{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</div>
+                        <div className="review-meta">
+                          <strong>{rev.user?.fullName || 'Customer'}</strong>
+                          {rev.isVerifiedPurchase && <span className="verified-badge">Verified purchase</span>}
+                          {rev.createdAt && <span className="review-date">{new Date(rev.createdAt).toLocaleDateString()}</span>}
+                        </div>
+                      </div>
+                      {rev.title && <h4>{rev.title}</h4>}
+                      {rev.comment && <p>{rev.comment}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="review-form-card">
+                <h3>Write a Review</h3>
+                {!accessToken && (
+                  <p className="form-hint">
+                    <button type="button" className="btn btn-primary" onClick={() => navigate('/auth/login', { state: { from: location.pathname } })}>
+                      Log in to write a review
+                    </button>
+                  </p>
+                )}
+                {accessToken && (
+                  <form className="review-form" onSubmit={handleReviewSubmit}>
+                    <div className="form-field">
+                      <label htmlFor="rating">Rating</label>
+                      <select id="rating" name="rating" value={reviewForm.rating} onChange={handleReviewChange}>
+                        {[5, 4, 3, 2, 1].map((val) => (
+                          <option key={val} value={val}>{val} - {['Excellent','Good','OK','Fair','Poor'][5 - val]}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-field">
+                      <label htmlFor="title">Title</label>
+                      <input
+                        id="title"
+                        name="title"
+                        value={reviewForm.title}
+                        onChange={handleReviewChange}
+                        placeholder="Summarize your experience"
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label htmlFor="comment">Comment</label>
+                      <textarea
+                        id="comment"
+                        name="comment"
+                        value={reviewForm.comment}
+                        onChange={handleReviewChange}
+                        rows={3}
+                        placeholder="Share details others would find helpful"
+                      />
+                    </div>
+                    <button type="submit" className="btn btn-primary" disabled={reviewStatus === 'saving'}>
+                      {reviewStatus === 'saving' ? 'Submitting...' : 'Submit Review'}
+                    </button>
+                  </form>
+                )}
               </div>
             </div>
           )}
