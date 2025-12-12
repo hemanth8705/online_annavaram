@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, Optional
 
 from beanie.odm.fields import PydanticObjectId
@@ -11,6 +12,8 @@ from ..services.paymentService import (
     verifyRazorpaySignature,
     verifyRazorpayWebhookSignature,
 )
+
+logger = logging.getLogger("payments")
 
 
 def _serialize_order(order: Order, user: User) -> Dict[str, Any]:
@@ -75,6 +78,14 @@ async def verifyRazorpayPayment(
 
     if payment.status == "captured" and payment.transactionId:
         items = await OrderItem.find(OrderItem.order == order.id).to_list()
+        logger.info(
+            "Razorpay payment already captured",
+            extra={
+                "orderId": str(order.id),
+                "userId": str(user.id),
+                "paymentId": payment.transactionId,
+            },
+        )
         return {
             "success": True,
             "message": "Payment already verified.",
@@ -91,6 +102,15 @@ async def verifyRazorpayPayment(
         raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
 
     if not valid:
+        logger.warning(
+            "Invalid Razorpay signature",
+            extra={
+                "orderId": str(order.id),
+                "userId": str(user.id),
+                "paymentId": paymentId,
+                "razorpayOrderId": gateway_order_id,
+            },
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payment signature")
 
     payment.status = "captured"
@@ -104,6 +124,16 @@ async def verifyRazorpayPayment(
     await order.save()
 
     items = await OrderItem.find(OrderItem.order == order.id).to_list()
+
+    logger.info(
+        "Payment verified",
+        extra={
+            "orderId": str(order.id),
+            "userId": str(user.id),
+            "paymentId": paymentId,
+            "razorpayOrderId": gateway_order_id,
+        },
+    )
 
     return {
         "success": True,
@@ -142,6 +172,14 @@ async def handleRazorpayWebhook(request: Request):
 
     if not event_name:
         return {"success": False, "message": "Missing event name"}
+
+    logger.info(
+        "Razorpay webhook received",
+        extra={
+            "event": event_name,
+            "signaturePresent": bool(signature),
+        },
+    )
 
     # Handle payment.* events
     if event_name.startswith("payment."):
@@ -184,6 +222,16 @@ async def handleRazorpayWebhook(request: Request):
             order.status = "pending_payment"
             await order.save()
 
+        logger.info(
+            "Razorpay payment event processed",
+            extra={
+                "event": event_name,
+                "orderId": str(order.id),
+                "paymentId": payment.transactionId,
+                "status": payment.status,
+            },
+        )
+
         return {"success": True, "message": f"Processed {event_name}", "data": {"orderId": str(order.id)}}
 
     # Handle order.* events
@@ -216,10 +264,25 @@ async def handleRazorpayWebhook(request: Request):
 
             order.status = "paid"
             await order.save()
+            logger.info(
+                "Razorpay order paid event processed",
+                extra={
+                    "event": event_name,
+                    "orderId": str(order.id),
+                    "paymentId": payment.transactionId,
+                },
+            )
             return {"success": True, "message": "Order marked as paid", "data": {"orderId": str(order.id)}}
 
         _append_webhook_event(payment, event_name, order_entity)
         await payment.save()
+        logger.info(
+            "Razorpay order event acknowledged",
+            extra={
+                "event": event_name,
+                "orderId": str(order.id),
+            },
+        )
         return {"success": True, "message": f"Acknowledged {event_name}", "data": {"orderId": str(order.id)}}
 
     return {"success": True, "message": f"Ignored event {event_name}"}

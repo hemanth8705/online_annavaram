@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, Dict, List, Optional
 
@@ -18,6 +19,8 @@ from ..services.paymentService import (
     createRazorpayOrder,
     isConfigured,
 )
+
+logger = logging.getLogger("payments")
 
 
 def _ensure_object_id(value: str) -> PydanticObjectId:
@@ -101,9 +104,22 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
                 notes={"userId": str(user.id)},
                 capture=True,
             )
+            logger.info(
+                "Razorpay order created",
+                extra={
+                    "orderId": str(order.id),
+                    "userId": str(user.id),
+                    "razorpayOrderId": razorpay_order.get("id"),
+                    "amountRupees": total_amount,
+                },
+            )
             order.paymentIntentId = razorpay_order["id"]
             await order.save()
         except (PaymentServiceError, Exception) as exc:
+            logger.exception(
+                "Failed to create Razorpay order",
+                extra={"orderId": str(order.id), "userId": str(user.id)},
+            )
             await Order.find(Order.id == order.id).delete()
             await OrderItem.find(OrderItem.order == order.id).delete()
             raise HTTPException(
