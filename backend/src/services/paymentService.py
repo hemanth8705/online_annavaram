@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import hashlib
 import hmac
+import hashlib
 import asyncio
 import os
 from typing import Any, Dict, Optional
@@ -17,8 +17,20 @@ class PaymentServiceError(Exception):
         self.status = status
 
 
+def _get_credentials() -> tuple[Optional[str], Optional[str]]:
+    key_id = os.getenv("RAZORPAY_KEY_ID")
+    # Accept both the canonical KEY_SECRET name and the older SECRET env for compatibility
+    key_secret = os.getenv("RAZORPAY_KEY_SECRET") or os.getenv("RAZORPAY_SECRET")
+    return key_id, key_secret
+
+
+def _get_webhook_secret() -> Optional[str]:
+    return os.getenv("RAZORPAY_WEBHOOK_SECRET")
+
+
 def isConfigured() -> bool:
-    return bool(os.getenv("RAZORPAY_KEY_ID") and os.getenv("RAZORPAY_SECRET"))
+    key_id, key_secret = _get_credentials()
+    return bool(key_id and key_secret)
 
 
 def getClient() -> razorpay.Client:
@@ -26,22 +38,45 @@ def getClient() -> razorpay.Client:
     if not isConfigured():
         raise PaymentServiceError("Razorpay credentials are not configured", status=500)
     if _razorpay_client is None:
-        _razorpay_client = razorpay.Client(
-            auth=(os.getenv("RAZORPAY_KEY_ID"), os.getenv("RAZORPAY_SECRET"))
-        )
+        key_id, key_secret = _get_credentials()
+        _razorpay_client = razorpay.Client(auth=(key_id, key_secret))
     return _razorpay_client
 
 
-async def createRazorpayOrder(*, amount: int, currency: str = "INR", receipt: Optional[str] = None, notes: Optional[Dict[str, Any]] = None):
+async def createRazorpayOrder(
+    *,
+    amount: int,
+    currency: str = "INR",
+    receipt: Optional[str] = None,
+    notes: Optional[Dict[str, Any]] = None,
+    capture: bool = True,
+):
     client = getClient()
-    payload = {"amount": amount, "currency": currency, "receipt": receipt, "notes": notes or {}}
+    payload = {
+        "amount": amount,
+        "currency": currency,
+        "receipt": receipt,
+        "notes": notes or {},
+        # Explicitly set capture mode so live payments auto-capture unless configured otherwise
+        "payment_capture": 1 if capture else 0,
+    }
     return await asyncio.to_thread(client.order.create, payload)
 
 
-def verifyRazorpaySignature(*, orderId: str, paymentId: str, signature: str) -> bool:
-    secret = os.getenv("RAZORPAY_SECRET")
-    if not secret:
+def verifyRazorpaySignature(*, razorpayOrderId: str, paymentId: str, signature: str) -> bool:
+    _, key_secret = _get_credentials()
+    if not key_secret:
         raise PaymentServiceError("Razorpay secret is not configured", status=500)
-    payload = f"{orderId}|{paymentId}".encode("utf-8")
-    expected_signature = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+    payload = f"{razorpayOrderId}|{paymentId}".encode("utf-8")
+    expected_signature = hmac.new(key_secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
     return expected_signature == signature
+
+
+def verifyRazorpayWebhookSignature(*, raw_body: bytes, signature: Optional[str]) -> bool:
+    secret = _get_webhook_secret()
+    if not secret:
+        raise PaymentServiceError("Razorpay webhook secret is not configured", status=500)
+    if not signature:
+        raise PaymentServiceError("Missing Razorpay webhook signature", status=400)
+    computed = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(computed, signature)

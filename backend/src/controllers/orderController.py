@@ -57,6 +57,7 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     total_amount = snapshot["totals"]["amount"]
+    amount_paise = int(round(total_amount * 100))
     order_status = "pending_payment" if isConfigured() else "paid"
 
     order = Order(
@@ -94,10 +95,11 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
     if isConfigured():
         try:
             razorpay_order = await createRazorpayOrder(
-                amount=int(total_amount),
+                amount=amount_paise,
                 currency="INR",
                 receipt=str(order.id),
                 notes={"userId": str(user.id)},
+                capture=True,
             )
             order.paymentIntentId = razorpay_order["id"]
             await order.save()

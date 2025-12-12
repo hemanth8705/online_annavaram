@@ -1,16 +1,61 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from beanie.odm.fields import PydanticObjectId
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 
-from ..models import Order, Payment, User
-from ..services.paymentService import PaymentServiceError, verifyRazorpaySignature
+from ..models import Order, OrderItem, Payment, User
+from ..services.paymentService import (
+    PaymentServiceError,
+    verifyRazorpaySignature,
+    verifyRazorpayWebhookSignature,
+)
 
 
-async def verifyRazorpayPayment(*, user: User, orderId: str, paymentId: str, signature: str, payload: Dict[str, Any]):
-    order_object_id = PydanticObjectId(orderId)
+def _serialize_order(order: Order, user: User) -> Dict[str, Any]:
+    payload = order.model_dump()
+    payload["_id"] = payload.get("_id") or str(order.id)
+    payload["id"] = str(order.id)
+    payload["user"] = str(user.id)
+    return payload
+
+
+def _serialize_payment(payment: Payment) -> Dict[str, Any]:
+    payload = payment.model_dump()
+    payload["_id"] = payload.get("_id") or str(payment.id)
+    payload["id"] = str(payment.id)
+    payload["order"] = str(payment.order)
+    return payload
+
+
+def _serialize_items(items: list[OrderItem]) -> list[Dict[str, Any]]:
+    serialized = []
+    for item in items:
+        data = item.model_dump()
+        data["_id"] = data.get("_id") or str(item.id)
+        data["id"] = str(item.id)
+        data["order"] = str(item.order)
+        if "product" in data:
+            data["product"] = str(data["product"])
+        serialized.append(data)
+    return serialized
+
+
+async def verifyRazorpayPayment(
+    *,
+    user: User,
+    orderId: str,
+    paymentId: str,
+    signature: str,
+    payload: Dict[str, Any],
+    razorpayOrderId: Optional[str] = None,
+):
+    try:
+        order_object_id = PydanticObjectId(orderId)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid order identifier")
+
     order = await Order.find_one(Order.id == order_object_id, Order.user == user.id)
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
@@ -19,8 +64,29 @@ async def verifyRazorpayPayment(*, user: User, orderId: str, paymentId: str, sig
     if not payment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment record not found")
 
+    gateway_order_id = razorpayOrderId or order.paymentIntentId or (payment.rawResponse or {}).get("id")
+    if not gateway_order_id:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Payment was not initiated for this order")
+
+    gateway_order_id = str(gateway_order_id)
+
+    if order.paymentIntentId and order.paymentIntentId != gateway_order_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment reference mismatch")
+
+    if payment.status == "captured" and payment.transactionId:
+        items = await OrderItem.find(OrderItem.order == order.id).to_list()
+        return {
+            "success": True,
+            "message": "Payment already verified.",
+            "data": {
+                "order": _serialize_order(order, user),
+                "payment": _serialize_payment(payment),
+                "items": _serialize_items(items),
+            },
+        }
+
     try:
-        valid = verifyRazorpaySignature(orderId=orderId, paymentId=paymentId, signature=signature)
+        valid = verifyRazorpaySignature(razorpayOrderId=gateway_order_id, paymentId=paymentId, signature=signature)
     except PaymentServiceError as exc:
         raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
 
@@ -29,10 +95,131 @@ async def verifyRazorpayPayment(*, user: User, orderId: str, paymentId: str, sig
 
     payment.status = "captured"
     payment.transactionId = paymentId
-    payment.rawResponse = payload
+    merged_raw_response: Dict[str, Any] = payment.rawResponse or {}
+    merged_raw_response["verificationPayload"] = payload
+    payment.rawResponse = merged_raw_response
     await payment.save()
 
     order.status = "paid"
     await order.save()
 
-    return {"success": True, "message": "Payment verified successfully."}
+    items = await OrderItem.find(OrderItem.order == order.id).to_list()
+
+    return {
+        "success": True,
+        "message": "Payment verified successfully.",
+        "data": {
+            "order": _serialize_order(order, user),
+            "payment": _serialize_payment(payment),
+            "items": _serialize_items(items),
+        },
+    }
+
+
+def _append_webhook_event(payment: Payment, event_name: str, event_payload: Dict[str, Any]) -> None:
+    raw: Dict[str, Any] = payment.rawResponse or {}
+    events = raw.get("webhookEvents") or []
+    events.append({"event": event_name, "payload": event_payload})
+    raw["webhookEvents"] = events
+    payment.rawResponse = raw
+
+
+async def handleRazorpayWebhook(request: Request):
+    raw_body = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature")
+
+    try:
+        is_valid = verifyRazorpayWebhookSignature(raw_body=raw_body, signature=signature)
+    except PaymentServiceError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid webhook signature")
+
+    payload = await request.json()
+    event_name: str = payload.get("event") or ""
+    event_payload: Dict[str, Any] = payload.get("payload") or {}
+
+    if not event_name:
+        return {"success": False, "message": "Missing event name"}
+
+    # Handle payment.* events
+    if event_name.startswith("payment."):
+        payment_entity: Dict[str, Any] = (event_payload.get("payment") or {}).get("entity") or {}
+        razorpay_order_id = payment_entity.get("order_id")
+        payment_id = payment_entity.get("id")
+        status_value = payment_entity.get("status")
+
+        if not razorpay_order_id:
+            return {"success": False, "message": "No order reference on payment event"}
+
+        order = await Order.find_one(Order.paymentIntentId == razorpay_order_id)
+        if not order:
+            return {"success": True, "message": "Order not found for payment event (acknowledged to stop retries)"}
+
+        payment = await Payment.find_one(Payment.order == order.id, Payment.gateway == "razorpay")
+        if not payment:
+            payment = Payment(
+                order=order.id,
+                gateway="razorpay",
+                amount=order.totalAmount,
+                currency=order.currency,
+                status="initiated",
+                transactionId=payment_id,
+                rawResponse={},
+            )
+            await payment.insert()
+
+        if status_value in {"authorized", "captured", "failed", "refunded"}:
+            payment.status = status_value  # type: ignore[assignment]
+
+        payment.transactionId = payment_id or payment.transactionId
+        _append_webhook_event(payment, event_name, payment_entity)
+        await payment.save()
+
+        if status_value == "captured":
+            order.status = "paid"
+            await order.save()
+        elif status_value == "failed":
+            order.status = "pending_payment"
+            await order.save()
+
+        return {"success": True, "message": f"Processed {event_name}", "data": {"orderId": str(order.id)}}
+
+    # Handle order.* events
+    if event_name.startswith("order."):
+        order_entity: Dict[str, Any] = (event_payload.get("order") or {}).get("entity") or {}
+        razorpay_order_id = order_entity.get("id")
+        if not razorpay_order_id:
+            return {"success": False, "message": "No order id on order event"}
+
+        order = await Order.find_one(Order.paymentIntentId == razorpay_order_id)
+        if not order:
+            return {"success": True, "message": "Order not found for order event (acknowledged)"}
+
+        payment = await Payment.find_one(Payment.order == order.id, Payment.gateway == "razorpay")
+        if not payment:
+            payment = Payment(
+                order=order.id,
+                gateway="razorpay",
+                amount=order.totalAmount,
+                currency=order.currency,
+                status="initiated",
+                rawResponse={},
+            )
+            await payment.insert()
+
+        if event_name == "order.paid":
+            payment.status = "captured"
+            _append_webhook_event(payment, event_name, order_entity)
+            await payment.save()
+
+            order.status = "paid"
+            await order.save()
+            return {"success": True, "message": "Order marked as paid", "data": {"orderId": str(order.id)}}
+
+        _append_webhook_event(payment, event_name, order_entity)
+        await payment.save()
+        return {"success": True, "message": f"Acknowledged {event_name}", "data": {"orderId": str(order.id)}}
+
+    return {"success": True, "message": f"Ignored event {event_name}"}
