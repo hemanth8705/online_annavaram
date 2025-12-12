@@ -441,8 +441,15 @@ const CheckoutPage = () => {
 
     try {
       const response = await placeOrder(payload);
+      
+      console.log('[Checkout] Order created:', { 
+        hasRazorpay: !!response.razorpay, 
+        useLocal,
+        response 
+      });
 
       if (!response.razorpay || useLocal) {
+        console.log('[Checkout] Skipping Razorpay, going to success');
         navigate('/order/success', {
           state: {
             order: response.order,
@@ -454,6 +461,7 @@ const CheckoutPage = () => {
         return;
       }
 
+      console.log('[Checkout] Opening Razorpay checkout');
       await openRazorpayCheckout({ orderResponse: response, payload });
     } catch (err) {
       console.error('Checkout failed', err);
