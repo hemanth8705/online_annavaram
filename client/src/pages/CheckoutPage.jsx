@@ -173,6 +173,7 @@ const CheckoutPage = () => {
               orderId: order.id || order._id,
               paymentId: paymentResult.razorpay_payment_id,
               signature: paymentResult.razorpay_signature,
+              razorpayOrderId: paymentResult.razorpay_order_id,
               payload: paymentResult,
             });
             navigate('/order/success', {
