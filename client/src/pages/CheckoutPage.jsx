@@ -170,7 +170,7 @@ const CheckoutPage = () => {
         handler: async (paymentResult) => {
           try {
             const verification = await confirmPayment({
-              orderId: order._id,
+              orderId: order.id || order._id,
               paymentId: paymentResult.razorpay_payment_id,
               signature: paymentResult.razorpay_signature,
               payload: paymentResult,

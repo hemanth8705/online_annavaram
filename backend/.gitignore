@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+**/.env
+.DS_Store
+*.log
+env/
+*.pyc
+__pycache__/
+backend/src/__pycache__/k
+.idea/

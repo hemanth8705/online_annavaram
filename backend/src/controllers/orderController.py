@@ -57,6 +57,7 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
             "shippingState": shippingAddress.get("state"),
         },
     )
+    print(f"[payments] createOrder start user={user.id} city={shippingAddress.get('city')} state={shippingAddress.get('state')}")
     cart = await getOrCreateActiveCart(user.id)
     snapshot = await buildCartSnapshot(cart.id)
     if not snapshot["items"]:
@@ -75,6 +76,7 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
             "Razorpay not configured; order will be marked paid without gateway",
             extra={"userId": str(user.id), "orderStatus": order_status},
         )
+        print(f"[payments] razorpay not configured; skipping gateway for order (user={user.id})")
 
     order = Order(
         user=user.id,
@@ -110,6 +112,7 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
     razorpay_order = None
     if isConfigured():
         try:
+            print(f"[payments] creating razorpay order for order={order.id} amount_rupees={total_amount}")
             razorpay_order = await createRazorpayOrder(
                 amount=amount_paise,
                 currency="INR",
@@ -126,6 +129,7 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
                     "amountRupees": total_amount,
                 },
             )
+            print(f"[payments] razorpay order created order={order.id} rp_order={razorpay_order.get('id')} amount_rupees={total_amount}")
             order.paymentIntentId = razorpay_order["id"]
             await order.save()
         except (PaymentServiceError, Exception) as exc:
@@ -133,6 +137,7 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
                 "Failed to create Razorpay order",
                 extra={"orderId": str(order.id), "userId": str(user.id)},
             )
+            print(f"[payments] razorpay order creation failed order={order.id} err={exc}")
             await Order.find(Order.id == order.id).delete()
             await OrderItem.find(OrderItem.order == order.id).delete()
             raise HTTPException(
@@ -166,6 +171,7 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
             "amountRupees": total_amount,
         },
     )
+    print(f"[payments] order created order={order.id} user={user.id} has_razorpay={bool(razorpay_order)} amount_rupees={total_amount}")
 
     return {
         "success": True,

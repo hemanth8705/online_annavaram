@@ -63,6 +63,7 @@ async def verifyRazorpayPayment(
             "razorpayOrderId": razorpayOrderId,
         },
     )
+    print(f"[payments] verify called orderId={orderId} user={user.id} paymentId={paymentId} rp_order={razorpayOrderId}")
     try:
         order_object_id = PydanticObjectId(orderId)
     except Exception:
@@ -95,6 +96,7 @@ async def verifyRazorpayPayment(
                 "paymentId": payment.transactionId,
             },
         )
+        print(f"[payments] already captured order={order.id} paymentId={payment.transactionId}")
         return {
             "success": True,
             "message": "Payment already verified.",
@@ -120,6 +122,7 @@ async def verifyRazorpayPayment(
                 "razorpayOrderId": gateway_order_id,
             },
         )
+        print(f"[payments] invalid signature order={order.id} paymentId={paymentId} rp_order={gateway_order_id}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payment signature")
 
     payment.status = "captured"
@@ -143,6 +146,7 @@ async def verifyRazorpayPayment(
             "razorpayOrderId": gateway_order_id,
         },
     )
+    print(f"[payments] payment verified order={order.id} paymentId={paymentId} rp_order={gateway_order_id}")
 
     return {
         "success": True,
@@ -189,6 +193,7 @@ async def handleRazorpayWebhook(request: Request):
             "signaturePresent": bool(signature),
         },
     )
+    print(f"[payments] webhook received event={event_name} signature_present={bool(signature)}")
 
     # Handle payment.* events
     if event_name.startswith("payment."):
@@ -244,6 +249,7 @@ async def handleRazorpayWebhook(request: Request):
                 "status": payment.status,
             },
         )
+        print(f"[payments] payment event processed event={event_name} order={order.id} paymentId={payment.transactionId} status={payment.status}")
 
         return {"success": True, "message": f"Processed {event_name}", "data": {"orderId": str(order.id)}}
 
@@ -289,6 +295,7 @@ async def handleRazorpayWebhook(request: Request):
                     "paymentId": payment.transactionId,
                 },
             )
+            print(f"[payments] order paid event processed order={order.id} paymentId={payment.transactionId}")
             return {"success": True, "message": "Order marked as paid", "data": {"orderId": str(order.id)}}
 
         _append_webhook_event(payment, event_name, order_entity)
@@ -300,6 +307,7 @@ async def handleRazorpayWebhook(request: Request):
                 "orderId": str(order.id),
             },
         )
+        print(f"[payments] order event acknowledged event={event_name} order={order.id}")
         return {"success": True, "message": f"Acknowledged {event_name}", "data": {"orderId": str(order.id)}}
 
     return {"success": True, "message": f"Ignored event {event_name}"}
