@@ -166,7 +166,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
-SMTP_FROM="Online Annavaram <your-email@gmail.com>"
+SMTP_FROM="Kana Vindu <your-email@gmail.com>"
 
 RAZORPAY_KEY_ID=your_test_key_id
 RAZORPAY_SECRET=your_test_secret
@@ -520,7 +520,7 @@ db.orders.find().pretty()
 
 ## 📝 Conclusion
 
-The Online Annavaram e-commerce platform has a **solid frontend-backend integration** with all major user flows working correctly. The fixes implemented ensure:
+The Kana Vindu e-commerce platform has a **solid frontend-backend integration** with all major user flows working correctly. The fixes implemented ensure:
 
 ✅ Proper JWT authentication throughout the app  
 ✅ Correct payment verification with Razorpay  

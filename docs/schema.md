@@ -1,4 +1,4 @@
-# Database Schema — Online Annavaram
+# Database Schema — Kana Vindu
 
 ## Overview
 - Database: MongoDB (document oriented)

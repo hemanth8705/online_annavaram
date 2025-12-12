@@ -6,6 +6,7 @@ import {
   login as loginRequest,
   requestPasswordReset as requestPasswordResetRequest,
   resetPassword as resetPasswordRequest,
+  refreshSession as refreshSessionRequest,
 } from '../lib/apiClient';
 
 const AuthContext = createContext(undefined);
@@ -210,7 +211,31 @@ export const AuthProvider = ({ children }) => {
     setPendingEmail(null);
     persistUser(null);
     persistAccessToken(null);
+    setAuthError(null);
+    
+    // Clear all user-related data from localStorage
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('online-annavaram@') || key.includes('cart') || key.includes('wishlist'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
   }, [persistAccessToken, persistUser]);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      const response = await refreshSessionRequest();
+      applyAuthSession(response);
+      setAuthError(null);
+      return response;
+    } catch (error) {
+      console.warn('Failed to refresh session', error);
+      logout();
+      throw error;
+    }
+  }, [applyAuthSession, logout]);
 
   const value = useMemo(
     () => ({
@@ -227,6 +252,7 @@ export const AuthProvider = ({ children }) => {
       requestPasswordReset,
       resetPassword,
       logout,
+      refreshSession,
       setAuthError,
       setPendingEmail,
     }),

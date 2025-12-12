@@ -40,19 +40,19 @@ class ResetPayload(BaseModel):
 
 
 class RefreshPayload(BaseModel):
-    refreshToken: Optional[str] = None
+    refreshToken: Optional[str] = Field(default=None)
 
 
 class AddressPayload(BaseModel):
     label: Optional[str] = None
-    contactName: str = Field(..., min_length=1)
-    phone: str = Field(..., min_length=5)
+    contactName: Optional[str] = Field(default=None, min_length=1)
+    phone: Optional[str] = Field(default=None, min_length=5)
     line1: str = Field(..., min_length=1)
     line2: Optional[str] = None
     city: str = Field(..., min_length=1)
     state: str = Field(..., min_length=1)
     postalCode: str = Field(..., min_length=3)
-    country: str = Field(default="IN", min_length=2, max_length=3)
+    country: str = Field(default="IN", min_length=2, max_length=64)
 
 
 @router.post("/signup")
@@ -78,11 +78,12 @@ async def login(payload: LoginPayload, request: Request, response: Response):
 
 
 @router.post("/refresh")
-async def refresh(payload: RefreshPayload, request: Request, response: Response):
+async def refresh(request: Request, response: Response, payload: Optional[RefreshPayload] = None):
+    refresh_token = payload.refreshToken if payload else None
     return await authController.refreshSessionHandler(
         request=request,
         response=response,
-        refreshToken=payload.refreshToken,
+        refreshToken=refresh_token,
     )
 
 

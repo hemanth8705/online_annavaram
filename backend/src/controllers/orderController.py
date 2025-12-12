@@ -138,7 +138,7 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
                     "amount": razorpay_order["amount"],
                     "currency": razorpay_order["currency"],
                     "keyId": os.getenv("RAZORPAY_KEY_ID"),
-                    "name": "Online Annavaram",
+                    "name": "Kana Vindu",
                     "description": f"Temple pantry order {order_payload['id']}",
                 }
                 if razorpay_order

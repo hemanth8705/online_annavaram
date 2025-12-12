@@ -6,6 +6,8 @@ from .Order import Order
 from .OrderItem import OrderItem
 from .Payment import Payment
 from .Session import Session
+from .Wishlist import Wishlist
+from .Review import Review
 
 DOCUMENT_MODELS = [
     User,
@@ -16,6 +18,8 @@ DOCUMENT_MODELS = [
     OrderItem,
     Payment,
     Session,
+    Wishlist,
+    Review,
 ]
 
 __all__ = [

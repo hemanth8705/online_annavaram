@@ -14,6 +14,7 @@ const ProductsPage = () => {
   const [error, setError] = useState(null);
 
   const categoryFilter = searchParams.get('category') || 'all';
+  const sortBy = searchParams.get('sortBy') || 'newest';
 
   useEffect(() => {
     let mounted = true;
@@ -23,15 +24,22 @@ const ProductsPage = () => {
       setStatus('loading');
       setError(null);
       try {
-        const response = await getProducts(
-          categoryFilter !== 'all' ? { category: categoryFilter } : {},
-          { signal: abortController.signal }
-        );
+        const params = {};
+        if (categoryFilter !== 'all') {
+          params.category = categoryFilter;
+        }
+        if (sortBy && sortBy !== 'newest') {
+          params.sortBy = sortBy;
+          params.sortOrder = sortBy === 'price-low' ? 'asc' : sortBy === 'price-high' ? 'desc' : 'desc';
+        }
+        
+        const response = await getProducts(params, { signal: abortController.signal });
         const items = response?.data ?? response ?? [];
         if (mounted) {
           console.log('[Products] loaded products', {
             count: items.length,
             categoryFilter,
+            sortBy,
           });
           setProducts(items);
           setStatus('ready');
@@ -53,7 +61,7 @@ const ProductsPage = () => {
       mounted = false;
       abortController.abort();
     };
-  }, [categoryFilter]);
+  }, [categoryFilter, sortBy]);
 
   const categories = useMemo(() => {
     const fromConfig = SITE_CONTENT.productSections.flatMap((section) =>
@@ -65,12 +73,23 @@ const ProductsPage = () => {
   }, [products]);
 
   const handleCategoryChange = (category) => {
+    const newParams = new URLSearchParams(searchParams);
     if (category === 'all') {
-      searchParams.delete('category');
-      setSearchParams(searchParams, { replace: true });
+      newParams.delete('category');
     } else {
-      setSearchParams({ category }, { replace: true });
+      newParams.set('category', category);
     }
+    setSearchParams(newParams, { replace: true });
+  };
+
+  const handleSortChange = (sort) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (sort === 'newest') {
+      newParams.delete('sortBy');
+    } else {
+      newParams.set('sortBy', sort);
+    }
+    setSearchParams(newParams, { replace: true });
   };
 
   return (
@@ -82,18 +101,33 @@ const ProductsPage = () => {
             <p>Explore our fresh batches and festive specials.</p>
           </div>
           <div className="filters">
-            <label htmlFor="category-filter">Filter by category</label>
-            <select
-              id="category-filter"
-              value={categoryFilter}
-              onChange={(event) => handleCategoryChange(event.target.value)}
-            >
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category === 'all' ? 'All Collections' : category}
-                </option>
-              ))}
-            </select>
+            <div className="filter-group">
+              <label htmlFor="category-filter">Filter by category</label>
+              <select
+                id="category-filter"
+                value={categoryFilter}
+                onChange={(event) => handleCategoryChange(event.target.value)}
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category === 'all' ? 'All Collections' : category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label htmlFor="sort-filter">Sort by</label>
+              <select
+                id="sort-filter"
+                value={sortBy}
+                onChange={(event) => handleSortChange(event.target.value)}
+              >
+                <option value="newest">Newest First</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+                <option value="name">Name: A to Z</option>
+              </select>
+            </div>
           </div>
         </div>
       </section>

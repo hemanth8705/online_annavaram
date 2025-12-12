@@ -30,7 +30,9 @@ from .routes import (
     orders_router,
     payments_router,
     products_router,
+    reviews_router,
     test_router,
+    wishlist_router,
 )
 
 logger = logging.getLogger("uvicorn.error")
@@ -62,7 +64,7 @@ async def lifespan(_app: FastAPI):
 def create_app() -> FastAPI:
     port = int(os.getenv("PORT", "4000"))
     app = FastAPI(
-        title="Online Annavaram API",
+        title="Kana Vindu API",
         version="1.0.0",
         docs_url=None,
         redoc_url=None,
@@ -95,7 +97,7 @@ def create_app() -> FastAPI:
     def _swagger_ui():
         return get_swagger_ui_html(
             openapi_url=app.openapi_url,
-            title="Online Annavaram API Docs",
+            title="Kana Vindu API Docs",
             oauth2_redirect_url=None,
         )
 
@@ -121,6 +123,8 @@ def register_routes(app: FastAPI) -> None:
     app.include_router(orders_router, prefix="/api/orders", tags=["orders"])
     app.include_router(payments_router, prefix="/api/payments", tags=["payments"])
     app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+    app.include_router(wishlist_router, prefix="/api/wishlist", tags=["wishlist"])
+    app.include_router(reviews_router, prefix="/api/reviews", tags=["reviews"])
 
 
 def register_exception_handlers(app: FastAPI) -> None:

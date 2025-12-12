@@ -38,7 +38,7 @@ OCT 13: Razorpay payments enabled
 - Frontend checkout now opens Razorpay modal and confirms payment before success page
 
 OCT 25-28: Cart/checkout backend and CORS improvements
-- Updated page metadata title to "Online Annavaram"
+- Updated page metadata title to "Kana Vindu"
 - Added password reset flow and Razorpay payment integration wiring
 - Improved CORS handling for allowed origins and preflight headers
 - Implemented cart, orders, payments, and products API endpoints end-to-end

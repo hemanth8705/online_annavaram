@@ -39,7 +39,7 @@ async def seed_data():
     password_hash = password_context.hash("demo-password")
 
     admin_user = User(
-        fullName="Online Annavaram Admin",
+        fullName="Kana Vindu Admin",
         email="admin@onlineannavaram.com",
         passwordHash=password_hash,
         role="admin",

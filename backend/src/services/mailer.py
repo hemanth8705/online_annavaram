@@ -61,7 +61,7 @@ async def sendMail(*, to: str, subject: str, text: Optional[str] = None, html: O
 
 
 async def sendOtpEmail(*, to: str, otp: str, expiresMinutes: int = 10):
-    subject = "Your Online Annavaram verification code"
+    subject = "Your Kana Vindu verification code"
     text = (
         f"Use the following verification code to complete your signup: {otp}. "
         f"It expires in {expiresMinutes} minutes."
@@ -71,13 +71,13 @@ async def sendOtpEmail(*, to: str, otp: str, expiresMinutes: int = 10):
     <p>Your verification code is <strong style="font-size:18px;">{otp}</strong>.</p>
     <p>The code will expire in {expiresMinutes} minutes.</p>
     <p>If you didn't request this code, please ignore this email.</p>
-    <p>&mdash; Online Annavaram</p>
+    <p>&mdash; Kana Vindu</p>
     """
     await sendMail(to=to, subject=subject, text=text, html=html)
 
 
 async def sendPasswordResetEmail(*, to: str, otp: str, expiresMinutes: int = 10):
-    subject = "Reset your Online Annavaram password"
+    subject = "Reset your Kana Vindu password"
     text = (
         f"Use this code to reset your password: {otp}. "
         f"It expires in {expiresMinutes} minutes."
@@ -87,7 +87,7 @@ async def sendPasswordResetEmail(*, to: str, otp: str, expiresMinutes: int = 10)
     <p>Your password reset code is <strong style="font-size:18px;">{otp}</strong>.</p>
     <p>The code will expire in {expiresMinutes} minutes.</p>
     <p>If you didn't request a reset, you can safely ignore this message.</p>
-    <p>&mdash; Online Annavaram</p>
+    <p>&mdash; Kana Vindu</p>
     """
     await sendMail(to=to, subject=subject, text=text, html=html)
 

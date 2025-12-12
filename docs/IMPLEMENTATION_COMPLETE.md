@@ -324,7 +324,7 @@ FastAPI treats `/api/cart` and `/api/cart/` as different routes. Some React Rout
 
 ## 🎊 Celebrate!
 
-All requested features implemented successfully! The online Annavaram prasadam e-commerce platform now has:
+All requested features implemented successfully! The Kana Vindu prasadam e-commerce platform now has:
 - Professional toast notifications
 - Data-validated location inputs
 - Fixed API routing issues

@@ -1,8 +1,8 @@
 OPENAPI_METADATA = {
     "info": {
-        "title": "Online Annavaram API",
+        "title": "Kana Vindu API",
         "version": "1.0.0",
-        "description": "FastAPI implementation of the Online Annavaram backend.",
+        "description": "FastAPI implementation of the Kana Vindu backend.",
     }
 }
 

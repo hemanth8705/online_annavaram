@@ -1,4 +1,4 @@
-# API Endpoints - Online Annavaram
+# API Endpoints - Kana Vindu
 
 Base URL: `/api`
 
@@ -254,5 +254,5 @@ Standard Error Shape:
 - Description: Raw OpenAPI specification consumed by the Swagger UI.
 
 ## Local Testing Helpers
-- `npm run seed` — resets database with demo data.
-- `npm run test:api` — runs scripted smoke tests covering product, cart, order, and admin flows.
+- `npm run seed` ï¿½ resets database with demo data.
+- `npm run test:api` ï¿½ runs scripted smoke tests covering product, cart, order, and admin flows.

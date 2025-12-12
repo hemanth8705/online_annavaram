@@ -52,13 +52,18 @@ class ProductUpdate(ProductBase):
     pass
 
 
-@router.get("/")
+@router.get("/", include_in_schema=True)
+@router.get("", include_in_schema=False)
 async def list_products(
     search: Optional[str] = None,
     category: Optional[str] = None,
     isActive: Optional[bool] = None,
     page: Optional[int] = None,
     limit: Optional[int] = None,
+    sortBy: Optional[str] = None,
+    sortOrder: Optional[str] = None,
+    minPrice: Optional[float] = None,
+    maxPrice: Optional[float] = None,
 ):
     return await productController.listProducts(
         search=search,
@@ -66,6 +71,10 @@ async def list_products(
         isActive=isActive,
         page=page,
         limit=limit,
+        sortBy=sortBy,
+        sortOrder=sortOrder,
+        minPrice=minPrice,
+        maxPrice=maxPrice,
     )
 
 

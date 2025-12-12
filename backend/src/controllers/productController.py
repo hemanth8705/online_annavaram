@@ -22,7 +22,18 @@ def _parse_pagination(page: Optional[int], limit: Optional[int]):
     return page, limit, skip
 
 
-async def listProducts(*, search: Optional[str], category: Optional[str], isActive: Optional[bool], page: Optional[int], limit: Optional[int]):
+async def listProducts(
+    *, 
+    search: Optional[str], 
+    category: Optional[str], 
+    isActive: Optional[bool], 
+    page: Optional[int], 
+    limit: Optional[int],
+    sortBy: Optional[str] = None,
+    sortOrder: Optional[str] = None,
+    minPrice: Optional[float] = None,
+    maxPrice: Optional[float] = None,
+):
     page, limit, skip = _parse_pagination(page, limit)
     query: dict = {}
     if search:
@@ -36,8 +47,29 @@ async def listProducts(*, search: Optional[str], category: Optional[str], isActi
         query["category"] = category
     if isActive is not None:
         query["isActive"] = isActive
+    
+    # Price range filtering
+    if minPrice is not None or maxPrice is not None:
+        query["price"] = {}
+        if minPrice is not None:
+            query["price"]["$gte"] = minPrice
+        if maxPrice is not None:
+            query["price"]["$lte"] = maxPrice
+    
+    # Sorting
+    sort_field = "-createdAt"  # default: newest first
+    if sortBy:
+        sort_order_prefix = "-" if sortOrder == "desc" else "+"
+        if sortBy == "price":
+            sort_field = f"{sort_order_prefix}price"
+        elif sortBy == "name":
+            sort_field = f"{sort_order_prefix}name"
+        elif sortBy == "newest":
+            sort_field = "-createdAt"
+        elif sortBy == "oldest":
+            sort_field = "+createdAt"
 
-    items = await Product.find(query).sort("-createdAt").skip(skip).limit(limit).to_list()
+    items = await Product.find(query).sort(sort_field).skip(skip).limit(limit).to_list()
     total = await Product.find(query).count()
 
     return {

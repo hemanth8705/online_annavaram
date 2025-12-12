@@ -12,7 +12,7 @@ from beanie.odm.fields import PydanticObjectId
 
 from ..models import Session, User
 
-ACCESS_EXPIRY = os.getenv("JWT_ACCESS_EXPIRY", "15m")
+ACCESS_EXPIRY = os.getenv("JWT_ACCESS_EXPIRY", "1d")
 REFRESH_EXPIRY = os.getenv("JWT_REFRESH_EXPIRY", "7d")
 
 

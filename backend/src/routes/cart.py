@@ -19,7 +19,8 @@ class UpdateItemPayload(BaseModel):
     quantity: int = Field(..., ge=0)
 
 
-@router.get("/")
+@router.get("/", include_in_schema=True)
+@router.get("", include_in_schema=False)
 async def get_cart(user: User = Depends(authenticate)):
     return await cartController.getCart(user=user)
 

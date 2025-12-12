@@ -77,7 +77,7 @@ async def updateItem(*, user: User, itemId: str, quantity: int):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid cart item ID")
 
     cart = await getOrCreateActiveCart(user.id)
-    item = await CartItem.find_one(CartItem.id == itemId, CartItem.cart == cart.id)
+    item = await CartItem.find_one(CartItem.id == PydanticObjectId(itemId), CartItem.cart == cart.id)
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart item not found")
 
@@ -108,7 +108,9 @@ async def removeItem(*, user: User, itemId: str):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid cart item ID")
 
     cart = await getOrCreateActiveCart(user.id)
-    await CartItem.find_one(CartItem.id == itemId, CartItem.cart == cart.id).delete()
+    item = await CartItem.find_one(CartItem.id == PydanticObjectId(itemId), CartItem.cart == cart.id)
+    if item:
+        await item.delete()
 
     snapshot = await buildCartSnapshot(cart.id)
     return {

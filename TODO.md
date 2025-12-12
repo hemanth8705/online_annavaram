@@ -13,19 +13,19 @@
 ## P1 – Checkout experience & address handling
 - [x] Auto-load saved address/contact from DB during checkout; prefill with signup info if no record exists.
 - [x] Support multiple saved addresses during checkout.
-- [ ] Provide city search suggestions plus state and pincode capture while entering the address.
+- [x] Provide city search suggestions plus state and pincode capture while entering the address.
 - [ ] Show a toast message “Added to cart” when items are added.
 
 ## P2 – UX polish & performance
-- [ ] Improve mobile responsiveness and accessibility across the app.
-- [ ] Optimize images and assets for faster load times.
-- [ ] Update the banner social media links to the actual URLs.
+- [x] Improve mobile responsiveness and accessibility across the app.
+- [x] Optimize images and assets for faster load times.
+- [x] Update the banner social media links to the actual URLs.
 
 ## P3 – User features
-- [ ] Add a profile page for users to view order history.
+- [x] Add a profile page for users to view order history.
 - [x] Add a wishlist feature.
-- [ ] Add user reviews and ratings for products.
-- [ ] Implement product filtering and sorting options.
+- [x] Add user reviews and ratings for products.
+- [x] Implement product filtering and sorting options.
 
 ## P4 – Growth & monetization
 - [ ] Integrate Google OAuth for quicker signup/login.

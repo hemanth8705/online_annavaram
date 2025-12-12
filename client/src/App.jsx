@@ -14,6 +14,7 @@ import AuthForgotPasswordPage from './pages/AuthForgotPasswordPage';
 import AuthResetPasswordPage from './pages/AuthResetPasswordPage';
 import AuthResetPasswordNewPage from './pages/AuthResetPasswordNewPage';
 import WishlistPage from './pages/WishlistPage';
+import ProfilePage from './pages/ProfilePage';
 
 const App = () => (
   <Routes>
@@ -23,6 +24,7 @@ const App = () => (
     <Route path="/cart" element={<CartPage />} />
     <Route path="/checkout" element={<CheckoutPage />} />
     <Route path="/wishlist" element={<WishlistPage />} />
+    <Route path="/profile" element={<ProfilePage />} />
     <Route path="/order/success" element={<OrderSuccessPage />} />
     <Route path="/order/failure" element={<OrderFailurePage />} />
     <Route path="/auth/signup" element={<AuthSignupPage />} />

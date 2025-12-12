@@ -1,6 +1,6 @@
 export const SITE_CONTENT = {
   brand: {
-    name: 'ONLINE ANNAVARAM',
+    name: 'Kana Vindu',
     tagline: 'Temple-town snacks handcrafted with Andhra devotion.',
     description:
       'Authentic Telugu savouries made fresh and shipped across India. Every bite carries the warmth of Annavaram streets.',
@@ -8,10 +8,10 @@ export const SITE_CONTENT = {
   },
   navLinks: [
     { label: 'Home', to: '/' },
-    { label: 'Shop All', to: '/products' },
-    { label: 'My Cart', to: '/cart' },
-    { label: 'Checkout', to: '/checkout' },
+    { label: 'Shop', to: '/products' },
     { label: 'Wishlist', to: '/wishlist' },
+    { label: 'My Cart', to: '/cart' },
+    { label: 'Profile', to: '/profile', authRequired: true },
   ],
   productSections: [
     {
@@ -101,7 +101,7 @@ export const SITE_CONTENT = {
   ],
   testimonial: {
     quote:
-      'Online Annavaram brings the same warmth we remember from temple streets. Every packet smells of hot ghee, roasted gram, and home kitchens.',
+      'Kana Vindu brings the same warmth we remember from temple streets. Every packet smells of hot ghee, roasted gram, and home kitchens.',
     author: 'Harika',
     role: 'Hyderabad Food Blogger',
   },
@@ -151,13 +151,14 @@ export const SITE_CONTENT = {
         title: 'Follow Us',
         className: 'social-links',
         links: [
-          { label: 'Instagram', href: 'https://instagram.com' },
-          { label: 'YouTube', href: 'https://youtube.com' },
-          { label: 'Facebook', href: 'https://facebook.com' },
+          { label: 'Instagram', href: 'https://instagram.com/onlineannavaram' },
+          { label: 'YouTube', href: 'https://youtube.com/@onlineannavaram' },
+          { label: 'Facebook', href: 'https://facebook.com/onlineannavaram' },
         ],
       },
     ],
-    copyright: '2025 Online Annavaram. Crafted in Andhra with love.',
+    copyright: '2025 Kana Vindu. Crafted in Andhra with love.',
+    whatsapp: '+919876543210', // Update with actual WhatsApp number
   },
 };
 

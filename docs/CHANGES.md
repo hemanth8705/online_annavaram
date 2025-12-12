@@ -1,7 +1,7 @@
 # Code Changes Summary
 
 ## Overview
-This document details all code changes made to fix frontend-backend integration issues in the Online Annavaram e-commerce platform.
+This document details all code changes made to fix frontend-backend integration issues in the Kana Vindu e-commerce platform.
 
 **Date**: December 11, 2025  
 **Total Files Modified**: 3  

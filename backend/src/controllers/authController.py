@@ -359,9 +359,18 @@ async def addAddress(*, request: Request, payload: dict):
     if len(user.addresses) >= 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Maximum of 5 addresses allowed.")
 
-    address = Address(**payload)
-    if not address.phone:
+    normalized = payload.copy()
+    normalized["contactName"] = (payload.get("contactName") or user.fullName or "").strip()
+    normalized["phone"] = (payload.get("phone") or user.phone or "").strip()
+    normalized["country"] = (payload.get("country") or "IN").strip()
+    if len(normalized["country"]) <= 3:
+        normalized["country"] = normalized["country"].upper()
+    if not normalized["contactName"]:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Contact name is required.")
+    if not normalized["phone"]:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Phone is required.")
+
+    address = Address(**normalized)
     user.addresses.append(address)
     await user.save()
     return {"success": True, "data": {"addresses": _serialize_user(user)["addresses"]}}
@@ -376,8 +385,21 @@ async def updateAddress(*, request: Request, address_id: str, payload: dict):
     if not address:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Address not found.")
 
-    for key, value in payload.items():
+    updates = payload.copy()
+    if "contactName" in updates:
+        updates["contactName"] = (updates.get("contactName") or address.contactName or user.fullName or "").strip()
+    if "phone" in updates:
+        updates["phone"] = (updates.get("phone") or address.phone or user.phone or "").strip()
+    if "country" in updates:
+        updates["country"] = (updates.get("country") or address.country or "IN").strip()
+        if len(updates["country"]) <= 3:
+          updates["country"] = updates["country"].upper()
+
+    for key, value in updates.items():
         setattr(address, key, value)
+
+    if not getattr(address, "contactName", None):
+        setattr(address, "contactName", user.fullName or "")
     if not getattr(address, "phone", None):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Phone is required.")
     await user.save()

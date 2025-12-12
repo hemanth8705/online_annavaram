@@ -45,6 +45,7 @@ async function request(path, { method = 'GET', data, headers = {}, accessToken, 
       ...headers,
     },
     signal,
+    credentials: 'include',
   };
 
   if (data !== undefined) {
@@ -190,4 +191,55 @@ export function resetPassword(payload, options = {}) {
 
 export function verifyRazorpayPayment(accessToken, payload, options = {}) {
   return request('/payments/razorpay/verify', { method: 'POST', data: payload, accessToken, ...options });
+}
+
+export function refreshSession(options = {}) {
+  return request('/auth/refresh', { method: 'POST', ...options });
+}
+
+export function getWishlist(accessToken, options = {}) {
+  return request('/wishlist', { accessToken, ...options });
+}
+
+export function addToWishlist(accessToken, payload, options = {}) {
+  return request('/wishlist', { method: 'POST', data: payload, accessToken, ...options });
+}
+
+export function removeFromWishlist(accessToken, productId, options = {}) {
+  return request(`/wishlist/${productId}`, { method: 'DELETE', accessToken, ...options });
+}
+
+export function toggleWishlistItem(accessToken, payload, options = {}) {
+  return request('/wishlist/toggle', { method: 'POST', data: payload, accessToken, ...options });
+}
+
+export function clearWishlist(accessToken, options = {}) {
+  return request('/wishlist', { method: 'DELETE', accessToken, ...options });
+}
+
+export function getProductReviews(productId, params = {}, options = {}) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.append(key, value);
+    }
+  });
+  const suffix = searchParams.toString() ? `?${searchParams.toString()}` : '';
+  return request(`/reviews/products/${productId}${suffix}`, options);
+}
+
+export function createReview(accessToken, payload, options = {}) {
+  return request('/reviews', { method: 'POST', data: payload, accessToken, ...options });
+}
+
+export function updateReview(accessToken, reviewId, payload, options = {}) {
+  return request(`/reviews/${reviewId}`, { method: 'PUT', data: payload, accessToken, ...options });
+}
+
+export function deleteReview(accessToken, reviewId, options = {}) {
+  return request(`/reviews/${reviewId}`, { method: 'DELETE', accessToken, ...options });
+}
+
+export function getMyReviews(accessToken, options = {}) {
+  return request('/reviews/my-reviews', { accessToken, ...options });
 }

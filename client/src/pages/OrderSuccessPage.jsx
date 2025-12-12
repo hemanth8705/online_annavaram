@@ -17,7 +17,7 @@ const OrderSuccessPage = () => {
           </div>
           <h1>Order Confirmed!</h1>
           <p>
-            Thank you for choosing Online Annavaram. Our kitchen has started preparing your batch.
+            Thank you for choosing Kana Vindu. Our kitchen has started preparing your batch.
           </p>
 
           {order && (

@@ -49,6 +49,17 @@ const Layout = ({ children }) => {
             </ul>
           </nav>
           <div className="header-actions">
+            <Link
+              to="/cart"
+              className="cart-chip"
+              aria-label={`Cart with ${totalQuantity} items`}
+              state={{ from: location.pathname }}
+            >
+              <span className="cart-chip__icon" aria-hidden="true">
+                🛒
+              </span>
+              <span className="cart-chip__count">{totalQuantity}</span>
+            </Link>
             {user ? (
               <div className="user-chip">
                 <span>{user.fullName?.split(' ')[0] || 'Customer'}</span>
@@ -66,17 +77,6 @@ const Layout = ({ children }) => {
                 </Link>
               </>
             )}
-            <Link
-              to="/cart"
-              className="cart-chip"
-              aria-label={`Cart with ${totalQuantity} items`}
-              state={{ from: location.pathname }}
-            >
-              <span className="cart-chip__icon" aria-hidden="true">
-                🛒
-              </span>
-              <span className="cart-chip__count">{totalQuantity}</span>
-            </Link>
           </div>
         </div>
       </header>

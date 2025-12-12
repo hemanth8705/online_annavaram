@@ -89,7 +89,7 @@ const AuthLoginPage = () => {
             </button>
           </form>
           <p className="auth-footer-text">
-            New to Online Annavaram?{' '}
+            New to Kana Vindu?{' '}
             <Link to="/auth/signup" className="text-link">
               Create an account
             </Link>

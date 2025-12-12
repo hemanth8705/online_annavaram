@@ -95,7 +95,7 @@ function persistLocalCart(items) {
 const EMPTY_CART = { items: [], totals: { quantity: 0, amount: 0 }, status: 'active' };
 
 export const CartProvider = ({ children }) => {
-  const { user, accessToken, hydrated } = useAuth();
+  const { user, accessToken, hydrated, refreshSession, logout } = useAuth();
   const { showToast } = useToast();
   const [cart, setCart] = useState(EMPTY_CART);
   const [status, setStatus] = useState('idle');
@@ -121,6 +121,18 @@ export const CartProvider = ({ children }) => {
       setCart(normaliseCart(response));
       setStatus('ready');
     } catch (err) {
+      if (err?.status === 401) {
+        try {
+          await refreshSession();
+          const retry = await getCart(accessToken);
+          setCart(normaliseCart(retry));
+          setStatus('ready');
+          return;
+        } catch (refreshErr) {
+          console.warn('Refresh failed, falling back to local cart', refreshErr);
+          logout();
+        }
+      }
       console.warn('Falling back to local cart', err);
       setUseLocal(true);
       const localCart = loadLocalCart();
@@ -128,7 +140,7 @@ export const CartProvider = ({ children }) => {
       setStatus('ready');
       setError(err);
     }
-  }, [accessToken]);
+  }, [accessToken, logout, refreshSession]);
 
   useEffect(() => {
     if (!hydrated) return;

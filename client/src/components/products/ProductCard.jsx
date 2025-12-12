@@ -77,7 +77,13 @@ const ProductCard = ({ product }) => {
     <article className="product-card" data-testid={`product-${productId || product.name}`}>
       <div className="product-card__image-wrap">
         <Link to={productLink} aria-label={product.name}>
-          <img src={imageSrc} alt={product.name} className="product-img" />
+          <img 
+            src={imageSrc} 
+            alt={product.name} 
+            className="product-img" 
+            loading="lazy"
+            decoding="async"
+          />
         </Link>
         <button
           type="button"
