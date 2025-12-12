@@ -102,6 +102,8 @@ export const CartProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [useLocal, setUseLocal] = useState(!accessToken);
   const hadAuthenticatedSession = useRef(false);
+  const pendingUpdateIds = useRef({});
+  const lastToastAt = useRef(0);
 
   const hydrateFromBackend = useCallback(async () => {
     if (!accessToken) {
@@ -248,19 +250,38 @@ export const CartProvider = ({ children }) => {
     async (itemId, quantity) => {
       console.log('[Cart] updateItemQuantity called', { itemId, quantity, useLocal, hasToken: !!accessToken });
       if (!useLocal && accessToken) {
+        const prevCart = cart;
+        const requestId = (pendingUpdateIds.current[itemId] || 0) + 1;
+        pendingUpdateIds.current[itemId] = requestId;
+        // Optimistic UI update so rapid clicks reflect immediately
+        setCart((current) => {
+          const nextItems = (current.items || []).map((item) =>
+            item.id === itemId ? { ...item, quantity, subtotal: item.unitPrice * quantity } : item
+          );
+          return { ...current, items: nextItems, totals: computeTotals(nextItems) };
+        });
         try {
           setStatus('updating');
           const response = await updateCartItem(accessToken, itemId, { quantity });
-          setCart(normaliseCart(response));
-          setStatus('ready');
-          if (quantity === 0) {
-            showToast('Item removed from cart', 'info');
-          } else {
-            showToast('Cart updated', 'success');
+          // Ignore stale responses (when multiple rapid requests were sent)
+          if (pendingUpdateIds.current[itemId] === requestId) {
+            setCart(normaliseCart(response));
+            const now = Date.now();
+            if (now - lastToastAt.current > 800) {
+              if (quantity === 0) {
+                showToast('Item removed from cart', 'info');
+              } else {
+                showToast('Cart updated', 'success');
+              }
+              lastToastAt.current = now;
+            }
           }
+          setStatus('ready');
           return;
         } catch (err) {
           console.warn('updateItemQuantity falling back to local cart', err);
+          // Revert optimistic update on failure
+          setCart(prevCart);
           setUseLocal(true);
           setError(err);
           if (err.status === 401) {
