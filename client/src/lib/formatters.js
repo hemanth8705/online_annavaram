@@ -1,15 +1,12 @@
-const currencyFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  minimumFractionDigits: 2,
-});
-
-export function formatCurrency(paiseAmount) {
-  if (typeof paiseAmount !== 'number' || Number.isNaN(paiseAmount)) {
-    return currencyFormatter.format(0);
-  }
-
-  return currencyFormatter.format(paiseAmount / 100);
+export function formatCurrency(amount, currency = 'INR') {
+  const safeAmount = typeof amount === 'number' && !Number.isNaN(amount) ? amount : 0;
+  const formatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  });
+  // Amounts throughout the app are stored in rupees; do not divide by 100.
+  return formatter.format(safeAmount);
 }
 
 export function formatStatus(status = '') {
