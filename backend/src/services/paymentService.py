@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import hmac
 import hashlib
+import logging
 import asyncio
 import os
 from typing import Any, Dict, Optional
 
 import razorpay
+
+logger = logging.getLogger("payments")
 
 _razorpay_client: Optional[razorpay.Client] = None
 
@@ -39,6 +42,10 @@ def getClient() -> razorpay.Client:
         raise PaymentServiceError("Razorpay credentials are not configured", status=500)
     if _razorpay_client is None:
         key_id, key_secret = _get_credentials()
+        logger.info(
+            "Initializing Razorpay client",
+            extra={"keyIdLast4": key_id[-4:] if key_id else None},
+        )
         _razorpay_client = razorpay.Client(auth=(key_id, key_secret))
     return _razorpay_client
 

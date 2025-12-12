@@ -49,6 +49,14 @@ def _serialize_payment(payment: Payment) -> Dict[str, Any]:
 
 
 async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Optional[str]):
+    logger.info(
+        "Create order requested",
+        extra={
+            "userId": str(user.id),
+            "shippingCity": shippingAddress.get("city"),
+            "shippingState": shippingAddress.get("state"),
+        },
+    )
     cart = await getOrCreateActiveCart(user.id)
     snapshot = await buildCartSnapshot(cart.id)
     if not snapshot["items"]:
@@ -62,6 +70,11 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
     total_amount = snapshot["totals"]["amount"]
     amount_paise = int(round(total_amount * 100))
     order_status = "pending_payment" if isConfigured() else "paid"
+    if not isConfigured():
+        logger.warning(
+            "Razorpay not configured; order will be marked paid without gateway",
+            extra={"userId": str(user.id), "orderStatus": order_status},
+        )
 
     order = Order(
         user=user.id,
@@ -143,6 +156,16 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
     order_payload = _serialize_order(order, user)
     items_payload = order_items_payload
     payment_payload = _serialize_payment(payment)
+
+    logger.info(
+        "Order created",
+        extra={
+            "orderId": str(order.id),
+            "userId": str(user.id),
+            "hasRazorpay": bool(razorpay_order),
+            "amountRupees": total_amount,
+        },
+    )
 
     return {
         "success": True,

@@ -54,6 +54,15 @@ async def verifyRazorpayPayment(
     payload: Dict[str, Any],
     razorpayOrderId: Optional[str] = None,
 ):
+    logger.info(
+        "Verify Razorpay payment called",
+        extra={
+            "orderId": orderId,
+            "userId": str(user.id),
+            "paymentId": paymentId,
+            "razorpayOrderId": razorpayOrderId,
+        },
+    )
     try:
         order_object_id = PydanticObjectId(orderId)
     except Exception:
@@ -193,6 +202,10 @@ async def handleRazorpayWebhook(request: Request):
 
         order = await Order.find_one(Order.paymentIntentId == razorpay_order_id)
         if not order:
+            logger.warning(
+                "Payment event with no matching order",
+                extra={"event": event_name, "razorpayOrderId": razorpay_order_id, "paymentId": payment_id},
+            )
             return {"success": True, "message": "Order not found for payment event (acknowledged to stop retries)"}
 
         payment = await Payment.find_one(Payment.order == order.id, Payment.gateway == "razorpay")
@@ -243,6 +256,10 @@ async def handleRazorpayWebhook(request: Request):
 
         order = await Order.find_one(Order.paymentIntentId == razorpay_order_id)
         if not order:
+            logger.warning(
+                "Order event with no matching order",
+                extra={"event": event_name, "razorpayOrderId": razorpay_order_id},
+            )
             return {"success": True, "message": "Order not found for order event (acknowledged)"}
 
         payment = await Payment.find_one(Payment.order == order.id, Payment.gateway == "razorpay")
