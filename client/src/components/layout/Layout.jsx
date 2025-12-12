@@ -31,7 +31,7 @@ const Layout = ({ children }) => {
       <header className="site-header">
         <div className="container header-inner">
           <Link to="/" className="logo" aria-label={brand.name}>
-            <img src="/images/logo.png" alt={`${brand.name} logo`} width="80" height="70" />
+            <img src="/chocolate_images/logo.png" alt={`${brand.name} logo`} width="80" height="70" />
           </Link>
           <nav className="navigation" aria-label="Primary Navigation">
             <ul>
