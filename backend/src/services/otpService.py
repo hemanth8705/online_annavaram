@@ -12,7 +12,7 @@ from ..models import User
 OTP_LENGTH = 6
 OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "10"))
 OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
-OTP_MAX_PER_WINDOW = int(os.getenv("OTP_MAX_PER_WINDOW", "3"))k
+OTP_MAX_PER_WINDOW = int(os.getenv("OTP_MAX_PER_WINDOW", "3"))
 OTP_RATE_LIMIT_MINUTES = int(os.getenv("OTP_RATE_LIMIT_MINUTES", "15"))
 
 SUPPORTED_BUCKETS = {"emailVerification", "passwordReset"}
