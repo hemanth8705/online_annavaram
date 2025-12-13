@@ -18,8 +18,23 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 
 // Middleware
+// Configure CORS to accept configured client URL(s).
+// Supports comma-separated CLIENT_URL env var and allows localhost:5174 during development.
+const rawClientUrls = process.env.CLIENT_URL || 'http://localhost:5173';
+const clientUrls = rawClientUrls.split(',').map((s) => s.trim()).filter(Boolean);
+if (process.env.NODE_ENV !== 'production' && !clientUrls.includes('http://localhost:5174')) {
+  clientUrls.push('http://localhost:5174');
+}
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow non-browser requests like curl/postman (no origin)
+    if (!origin) return callback(null, true);
+    if (clientUrls.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS policy: Origin not allowed'), false);
+  },
   credentials: true
 }));
 app.use(express.json());
