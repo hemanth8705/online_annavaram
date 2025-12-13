@@ -504,12 +504,17 @@ async def googleAuth(*, idToken: str, request: Request, response: Response):
         logger.info(f"Google auth: created new user, email={email}")
 
     # Create session and return auth response
-    session, access_token, access_expires = await createSession(user=user, request=request)
-    _set_refresh_cookie(response, session.refreshToken, session.expiresAt)
+    session_payload = await createSession(
+        user=user,
+        userAgent=request.headers.get("user-agent"),
+        ipAddress=request.client.host if request.client else None,
+        metadata=None,
+    )
+    _set_refresh_cookie(response, session_payload["refreshToken"], session_payload["refreshTokenExpiresAt"])
 
     return _build_auth_response(
         user=user,
-        access_token=access_token,
-        access_expires=access_expires,
-        session=session,
+        access_token=session_payload["accessToken"],
+        access_expires=session_payload["accessTokenExpiresAt"],
+        session=session_payload["session"],
     )

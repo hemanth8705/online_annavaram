@@ -107,9 +107,9 @@ export const CartProvider = ({ children }) => {
 
   const hydrateFromBackend = useCallback(async () => {
     if (!accessToken) {
-      console.log('[Cart] hydrating from local storage (no access token)');
-      setUseLocal(true);
-      setCart(loadLocalCart());
+      console.log('[Cart] No access token, cart requires authentication');
+      setUseLocal(false);
+      setCart(EMPTY_CART);
       setStatus('ready');
       return;
     }
@@ -122,6 +122,7 @@ export const CartProvider = ({ children }) => {
       const response = await getCart(accessToken);
       setCart(normaliseCart(response));
       setStatus('ready');
+      setUseLocal(false);
     } catch (err) {
       if (err?.status === 401) {
         try {
@@ -129,18 +130,18 @@ export const CartProvider = ({ children }) => {
           const retry = await getCart(accessToken);
           setCart(normaliseCart(retry));
           setStatus('ready');
+          setUseLocal(false);
           return;
         } catch (refreshErr) {
-          console.warn('Refresh failed, falling back to local cart', refreshErr);
+          console.error('Refresh failed', refreshErr);
           logout();
         }
       }
-      console.warn('Falling back to local cart', err);
-      setUseLocal(true);
-      const localCart = loadLocalCart();
-      setCart(localCart);
-      setStatus('ready');
+      console.error('Failed to load cart', err);
+      setCart(EMPTY_CART);
+      setStatus('error');
       setError(err);
+      setUseLocal(false);
     }
   }, [accessToken, logout, refreshSession]);
 
@@ -154,15 +155,10 @@ export const CartProvider = ({ children }) => {
       setError(null);
       hydrateFromBackend();
     } else {
-      const shouldClear = hadAuthenticatedSession.current;
-      if (shouldClear) {
-        console.log('[Cart] clearing cart on logout/guest view');
-        persistLocalCart([]);
-        setCart(EMPTY_CART);
-      } else {
-        setCart(loadLocalCart());
-      }
-      setUseLocal(true);
+      // Clear cart when not authenticated
+      console.log('[Cart] No authentication, clearing cart');
+      setCart(EMPTY_CART);
+      setUseLocal(false);
       setStatus('ready');
       setError(null);
     }
@@ -192,170 +188,129 @@ export const CartProvider = ({ children }) => {
         throw authError;
       }
 
-      console.log('[Cart] addItem called', { productId, quantity, product, useLocal, hasToken: !!accessToken });
-      if (!useLocal && accessToken) {
-        try {
-          setStatus('updating');
-          const response = await addCartItem(accessToken, {
-            productId,
-            quantity,
-          });
-          setCart(normaliseCart(response));
-          setStatus('ready');
-          showToast(`Added ${product.name} to cart`, 'success');
-          return;
-        } catch (err) {
-          console.warn('addItem falling back to local cart', err);
-          setUseLocal(true);
-          setError(err);
-          if (err.status === 401) {
-            showToast(err.message || 'Session expired. Please log in again.', 'error');
-          } else {
-            showToast(err.message || 'Failed to add to cart', 'error');
-          }
-        }
-      }
-
-      applyLocalUpdate((items) => {
-        const nextItems = [...items];
-        const existingIndex = nextItems.findIndex((item) => item.productId === productId);
-        if (existingIndex >= 0) {
-          nextItems[existingIndex] = {
-            ...nextItems[existingIndex],
-            quantity: nextItems[existingIndex].quantity + quantity,
-          };
+      console.log('[Cart] addItem called', { productId, quantity, product, hasToken: !!accessToken });
+      
+      try {
+        setStatus('updating');
+        const response = await addCartItem(accessToken, {
+          productId,
+          quantity,
+        });
+        setCart(normaliseCart(response));
+        setStatus('ready');
+        showToast(`Added ${product.name} to cart`, 'success');
+      } catch (err) {
+        setStatus('ready');
+        setError(err);
+        console.error('[Cart] Failed to add item', err);
+        if (err.status === 401) {
+          showToast(err.message || 'Session expired. Please log in again.', 'error');
         } else {
-          nextItems.push({
-            id: `local-${productId}`,
-            productId,
-            name: product.name,
-            quantity,
-            unitPrice: product.price,
-            subtotal: quantity * (product.price || 0),
-            productSnapshot: {
-              images: product.images || (product.image ? [product.image] : []),
-              category: product.category,
-              slug: product.slug,
-              stock: product.stock,
-            },
-          });
+          showToast(err.message || 'Failed to add to cart', 'error');
         }
-        return nextItems.filter((item) => item.quantity > 0);
-      });
+        throw err;
+      }
     },
-    [applyLocalUpdate, useLocal, accessToken]
+    [accessToken, showToast]
   );
 
   const updateItemQuantity = useCallback(
     async (itemId, quantity) => {
-      console.log('[Cart] updateItemQuantity called', { itemId, quantity, useLocal, hasToken: !!accessToken });
-      if (!useLocal && accessToken) {
-        const prevCart = cart;
-        const requestId = (pendingUpdateIds.current[itemId] || 0) + 1;
-        pendingUpdateIds.current[itemId] = requestId;
-        // Optimistic UI update so rapid clicks reflect immediately
-        setCart((current) => {
-          const nextItems = (current.items || []).map((item) =>
-            item.id === itemId ? { ...item, quantity, subtotal: item.unitPrice * quantity } : item
-          );
-          return { ...current, items: nextItems, totals: computeTotals(nextItems) };
-        });
-        try {
-          setStatus('updating');
-          const response = await updateCartItem(accessToken, itemId, { quantity });
-          // Ignore stale responses (when multiple rapid requests were sent)
-          if (pendingUpdateIds.current[itemId] === requestId) {
-            setCart(normaliseCart(response));
-            const now = Date.now();
-            if (now - lastToastAt.current > 800) {
-              if (quantity === 0) {
-                showToast('Item removed from cart', 'info');
-              } else {
-                showToast('Cart updated', 'success');
-              }
-              lastToastAt.current = now;
-            }
-          }
-          setStatus('ready');
-          return;
-        } catch (err) {
-          console.warn('updateItemQuantity falling back to local cart', err);
-          // Revert optimistic update on failure
-          setCart(prevCart);
-          setUseLocal(true);
-          setError(err);
-          if (err.status === 401) {
-            showToast(err.message || 'Session expired. Please log in again.', 'error');
-          } else {
-            showToast(err.message || 'Failed to update cart', 'error');
-          }
-        }
+      if (!accessToken) {
+        const authError = new Error('Please log in to update cart.');
+        authError.status = 401;
+        throw authError;
       }
 
-      applyLocalUpdate((items) =>
-        items
-          .map((item) => (item.id === itemId ? { ...item, quantity } : item))
-          .filter((item) => item.quantity > 0)
-      );
+      console.log('[Cart] updateItemQuantity called', { itemId, quantity, hasToken: !!accessToken });
+      const prevCart = cart;
+      const requestId = (pendingUpdateIds.current[itemId] || 0) + 1;
+      pendingUpdateIds.current[itemId] = requestId;
+      // Optimistic UI update so rapid clicks reflect immediately
+      setCart((current) => {
+        const nextItems = (current.items || []).map((item) =>
+          item.id === itemId ? { ...item, quantity, subtotal: item.unitPrice * quantity } : item
+        );
+        return { ...current, items: nextItems, totals: computeTotals(nextItems) };
+      });
+      try {
+        setStatus('updating');
+        const response = await updateCartItem(accessToken, itemId, { quantity });
+        // Ignore stale responses (when multiple rapid requests were sent)
+        if (pendingUpdateIds.current[itemId] === requestId) {
+          setCart(normaliseCart(response));
+          const now = Date.now();
+          if (now - lastToastAt.current > 800) {
+            if (quantity === 0) {
+              showToast('Item removed from cart', 'info');
+            } else {
+              showToast('Cart updated', 'success');
+            }
+            lastToastAt.current = now;
+          }
+        }
+        setStatus('ready');
+      } catch (err) {
+        console.error('[Cart] Failed to update item quantity', err);
+        // Revert optimistic update on failure
+        setCart(prevCart);
+        setStatus('ready');
+        setError(err);
+        if (err.status === 401) {
+          showToast(err.message || 'Session expired. Please log in again.', 'error');
+        } else {
+          showToast(err.message || 'Failed to update cart', 'error');
+        }
+        throw err;
+      }
     },
-    [applyLocalUpdate, useLocal, accessToken, showToast]
+    [accessToken, cart, showToast]
   );
 
   const removeItem = useCallback(
     async (itemId) => {
-      console.log('[Cart] removeItem called', { itemId, useLocal, hasToken: !!accessToken });
-      if (!useLocal && accessToken) {
-        try {
-          setStatus('updating');
-          const response = await deleteCartItem(accessToken, itemId);
-          setCart(normaliseCart(response));
-          setStatus('ready');
-          showToast('Item removed from cart', 'info');
-          return;
-        } catch (err) {
-          console.warn('removeItem falling back to local cart', err);
-          setUseLocal(true);
-          setError(err);
-          if (err.status === 401) {
-            showToast(err.message || 'Session expired. Please log in again.', 'error');
-          } else {
-            showToast(err.message || 'Failed to remove item', 'error');
-          }
-        }
+      if (!accessToken) {
+        const authError = new Error('Please log in to remove items from cart.');
+        authError.status = 401;
+        throw authError;
       }
 
-      applyLocalUpdate((items) => items.filter((item) => item.id !== itemId));
+      console.log('[Cart] removeItem called', { itemId, hasToken: !!accessToken });
+      try {
+        setStatus('updating');
+        const response = await deleteCartItem(accessToken, itemId);
+        setCart(normaliseCart(response));
+        setStatus('ready');
+        showToast('Item removed from cart', 'info');
+      } catch (err) {
+        console.error('[Cart] Failed to remove item', err);
+        setStatus('ready');
+        setError(err);
+        if (err.status === 401) {
+          showToast(err.message || 'Session expired. Please log in again.', 'error');
+        } else {
+          showToast(err.message || 'Failed to remove item', 'error');
+        }
+        throw err;
+      }
     },
-    [applyLocalUpdate, useLocal, accessToken, showToast]
+    [accessToken, showToast]
   );
 
   const clearCart = useCallback(() => {
     console.log('[Cart] clearCart invoked');
-    persistLocalCart([]);
     setCart(EMPTY_CART);
   }, []);
 
   const placeOrder = useCallback(
     async (payload) => {
-      console.log('[Cart] placeOrder called', { payload, useLocal, hasToken: !!accessToken });
-      if (useLocal || !accessToken) {
-        const mockOrder = {
-          order: {
-            _id: `local-order-${Date.now()}`,
-            status: 'pending_payment',
-            totalAmount: cart.totals.amount,
-            currency: 'INR',
-            createdAt: new Date().toISOString(),
-          },
-          items: cart.items,
-          payment: {
-            status: 'initiated',
-          },
-        };
-        clearCart();
-        return mockOrder;
+      if (!accessToken) {
+        const authError = new Error('Please log in to place an order.');
+        authError.status = 401;
+        throw authError;
       }
 
+      console.log('[Cart] placeOrder called', { payload, hasToken: !!accessToken });
       const response = await createOrder(accessToken, payload);
       setCart({ items: [], totals: { quantity: 0, amount: 0 }, status: 'active' });
       return response.data;
@@ -365,8 +320,8 @@ export const CartProvider = ({ children }) => {
 
   const confirmPayment = useCallback(
     async (payload) => {
-      if (useLocal || !accessToken) {
-        throw new Error('Unable to confirm payment in offline mode.');
+      if (!accessToken) {
+        throw new Error('Please log in to confirm payment.');
       }
       try {
         setStatus('updating');
@@ -381,7 +336,7 @@ export const CartProvider = ({ children }) => {
         throw err;
       }
     },
-    [hydrateFromBackend, useLocal, accessToken]
+    [hydrateFromBackend, accessToken]
   );
 
   const value = useMemo(

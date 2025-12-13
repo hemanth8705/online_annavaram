@@ -78,9 +78,9 @@ export const WishlistProvider = ({ children }) => {
 
   const hydrateFromBackend = useCallback(async () => {
     if (!accessToken) {
-      console.log('[Wishlist] No access token, using local storage');
-      setUseLocal(true);
-      loadLocalWishlist();
+      console.log('[Wishlist] No access token, wishlist requires authentication');
+      setUseLocal(false);
+      setItems([]);
       setStatus('ready');
       return;
     }
@@ -94,12 +94,12 @@ export const WishlistProvider = ({ children }) => {
       setStatus('ready');
       setUseLocal(false);
     } catch (err) {
-      console.warn('[Wishlist] Failed to load from backend, falling back to local', err);
-      loadLocalWishlist();
-      setStatus('ready');
-      setUseLocal(true);
+      console.error('[Wishlist] Failed to load from backend', err);
+      setItems([]);
+      setStatus('error');
+      setUseLocal(false);
     }
-  }, [accessToken, loadLocalWishlist]);
+  }, [accessToken]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -110,18 +110,13 @@ export const WishlistProvider = ({ children }) => {
       setUseLocal(false);
       hydrateFromBackend();
     } else {
-      const shouldClear = hadAuthenticatedSession.current;
-      if (shouldClear) {
-        console.log('[Wishlist] Clearing wishlist on logout');
-        persistLocal([]);
-        setItems([]);
-      } else {
-        loadLocalWishlist();
-      }
-      setUseLocal(true);
+      // Clear wishlist when not authenticated
+      console.log('[Wishlist] No authentication, clearing wishlist');
+      setItems([]);
+      setUseLocal(false);
       setStatus('ready');
     }
-  }, [accessToken, hydrateFromBackend, hydrated, loadLocalWishlist, persistLocal]);
+  }, [accessToken, hydrateFromBackend, hydrated]);
 
   const isWishlisted = useCallback(
     (product) => {
@@ -141,55 +136,54 @@ export const WishlistProvider = ({ children }) => {
 
       const productId = parsed.productId;
 
-      // If authenticated, use backend
-      if (!useLocal && accessToken) {
-        try {
-          setStatus('updating');
-          const response = await toggleWishlistItem(accessToken, { productId });
-          const inWishlist = response?.data?.inWishlist;
-          
-          if (inWishlist) {
-            // Added to wishlist
-            setItems((prev) => [...prev, parsed]);
-          } else {
-            // Removed from wishlist
-            setItems((prev) => prev.filter((item) => String(item.productId || item.id) !== String(productId)));
-          }
-          setStatus('ready');
-          return;
-        } catch (err) {
-          console.warn('[Wishlist] Failed to toggle on backend, falling back to local', err);
-          setUseLocal(true);
-        }
+      // Require authentication for wishlist
+      if (!accessToken) {
+        const error = new Error('Please log in to add items to your wishlist');
+        error.requiresAuth = true;
+        throw error;
       }
 
-      // Local fallback
-      setItems((prev) => {
-        const exists = prev.some((item) => String(item.productId || item.id) === String(productId));
-        const nextItems = exists 
-          ? prev.filter((item) => String(item.productId || item.id) !== String(productId)) 
-          : [...prev, parsed];
-        persistLocal(nextItems);
-        return nextItems;
-      });
+      // Use backend only (no local fallback)
+      try {
+        setStatus('updating');
+        const response = await toggleWishlistItem(accessToken, { productId });
+        const inWishlist = response?.data?.inWishlist;
+        
+        if (inWishlist) {
+          // Added to wishlist
+          setItems((prev) => [...prev, parsed]);
+        } else {
+          // Removed from wishlist
+          setItems((prev) => prev.filter((item) => String(item.productId || item.id) !== String(productId)));
+        }
+        setStatus('ready');
+        return;
+      } catch (err) {
+        setStatus('ready');
+        console.error('[Wishlist] Failed to toggle wishlist item', err);
+        throw err;
+      }
     },
-    [accessToken, persistLocal, useLocal]
+    [accessToken]
   );
 
   const clearWishlist = useCallback(async () => {
     console.log('[Wishlist] Clearing wishlist');
     
-    if (!useLocal && accessToken) {
-      try {
-        await clearWishlistAPI(accessToken);
-      } catch (err) {
-        console.warn('[Wishlist] Failed to clear on backend', err);
-      }
+    if (!accessToken) {
+      const error = new Error('Please log in to manage your wishlist');
+      error.requiresAuth = true;
+      throw error;
     }
     
-    setItems([]);
-    persistLocal([]);
-  }, [accessToken, persistLocal, useLocal]);
+    try {
+      await clearWishlistAPI(accessToken);
+      setItems([]);
+    } catch (err) {
+      console.error('[Wishlist] Failed to clear on backend', err);
+      throw err;
+    }
+  }, [accessToken]);
 
   const value = useMemo(
     () => ({
