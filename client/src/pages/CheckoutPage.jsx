@@ -185,16 +185,18 @@ const CheckoutPage = () => {
             });
           } catch (verifyError) {
             console.error('Payment verification failed', verifyError);
-            navigate('/order/failure', {
-              state: { message: verifyError.message || 'Unable to verify payment.' },
-            });
+            // Stay on checkout page for payment verification failures
+            // Cart is preserved - user can retry
+            setStatus('idle');
+            setError(new Error(verifyError.message || 'Unable to verify payment. Your cart items are safe.'));
           }
         },
         modal: {
           ondismiss: () => {
-            navigate('/order/failure', {
-              state: { message: 'Payment cancelled before completion.' },
-            });
+            // User cancelled payment - stay on checkout page
+            // Cart should NOT be cleared
+            console.log('[Checkout] Payment modal dismissed by user');
+            setStatus('idle');
           },
         },
       };
@@ -202,9 +204,10 @@ const CheckoutPage = () => {
       const razorpayInstance = new window.Razorpay(options);
       razorpayInstance.on('payment.failed', (failure) => {
         console.error('Payment failed', failure);
-        navigate('/order/failure', {
-          state: { message: failure.error?.description || 'Payment failed.' },
-        });
+        // Payment failed - stay on checkout page with error
+        // Cart is NOT cleared
+        setStatus('idle');
+        setError(new Error(failure.error?.description || 'Payment failed. Your cart items are safe. Please try again.'));
       });
       razorpayInstance.open();
     },

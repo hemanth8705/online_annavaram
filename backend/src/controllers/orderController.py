@@ -156,7 +156,10 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
     )
     await payment.insert()
 
-    await clearCart(cart.id)
+    # Note: Cart is NOT cleared here. It will be cleared after successful payment verification
+    # For manual/offline payments (no Razorpay), clear it now since payment is already "captured"
+    if not isConfigured():
+        await clearCart(cart.id)
 
     order_payload = _serialize_order(order, user)
     items_payload = order_items_payload
@@ -197,7 +200,28 @@ async def createOrder(*, user: User, shippingAddress: Dict[str, Any], notes: Opt
 
 async def listOrders(*, user: User):
     orders = await Order.find(Order.user == user.id).sort("-createdAt").to_list()
-    return {"success": True, "data": [_serialize_order(order, user) for order in orders]}
+    
+    # Fetch items for each order
+    result = []
+    for order in orders:
+        order_data = _serialize_order(order, user)
+        items = await OrderItem.find(OrderItem.order == order.id).to_list()
+        order_data["items"] = [
+            {
+                "id": str(item.id),
+                "order": str(item.order),
+                "product": str(item.product),
+                "productId": str(item.product),
+                "productName": item.productName,
+                "unitPrice": item.unitPrice,
+                "quantity": item.quantity,
+                "subtotal": item.subtotal,
+            }
+            for item in items
+        ]
+        result.append(order_data)
+    
+    return {"success": True, "data": result}
 
 
 async def getOrder(*, user: User, orderId: str):

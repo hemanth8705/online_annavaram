@@ -120,9 +120,42 @@ export const WishlistProvider = ({ children }) => {
 
   const isWishlisted = useCallback(
     (product) => {
-      const id = typeof product === 'string' ? product : deriveProductId(product);
-      if (!id) return false;
-      return items.some((item) => String(item.productId || item.id) === String(id));
+      // Get the product ID - could be passed as string or object
+      let productId;
+      if (typeof product === 'string') {
+        productId = product;
+      } else {
+        productId = deriveProductId(product);
+      }
+      
+      if (!productId) return false;
+      
+      // Normalize the product ID to string for comparison
+      const normalizedProductId = String(productId);
+      
+      // Check if any wishlist item matches this product ID
+      // Compare against all possible ID fields
+      return items.some((item) => {
+        const itemProductId = String(item.productId || item.id || item._id || '');
+        
+        // Direct match
+        if (itemProductId === normalizedProductId) return true;
+        
+        // If product is an object, also check its various ID fields
+        if (typeof product === 'object' && product !== null) {
+          const productPossibleIds = [
+            product._id,
+            product.id,
+            product.productId,
+          ].filter(Boolean).map(String);
+          
+          if (productPossibleIds.some(pid => pid === itemProductId)) {
+            return true;
+          }
+        }
+        
+        return false;
+      });
     },
     [items]
   );

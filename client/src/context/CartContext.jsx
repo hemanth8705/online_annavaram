@@ -312,7 +312,7 @@ export const CartProvider = ({ children }) => {
 
       console.log('[Cart] placeOrder called', { payload, hasToken: !!accessToken });
       const response = await createOrder(accessToken, payload);
-      setCart({ items: [], totals: { quantity: 0, amount: 0 }, status: 'active' });
+      // Note: Cart is NOT cleared here. It will be cleared by the backend after successful payment verification
       return response.data;
     },
     [cart.items, cart.totals.amount, clearCart, useLocal, accessToken]

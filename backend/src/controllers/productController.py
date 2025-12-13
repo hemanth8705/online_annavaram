@@ -6,12 +6,23 @@ from typing import Optional
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 
-from ..models import Product
+from ..models import Product, Review
 
 
-def _serialize_product(product: Product) -> dict:
+async def _serialize_product(product: Product) -> dict:
     payload = product.model_dump()
     payload["id"] = str(product.id)
+    
+    # Get review statistics
+    reviews = await Review.find(Review.product == product.id, Review.isApproved == True).to_list()
+    if reviews:
+        total_rating = sum(review.rating for review in reviews)
+        payload["averageRating"] = round(total_rating / len(reviews), 1)
+        payload["reviewCount"] = len(reviews)
+    else:
+        payload["averageRating"] = 0
+        payload["reviewCount"] = 0
+    
     return payload
 
 
@@ -71,10 +82,15 @@ async def listProducts(
 
     items = await Product.find(query).sort(sort_field).skip(skip).limit(limit).to_list()
     total = await Product.find(query).count()
+    
+    # Serialize products with review stats
+    serialized_items = []
+    for item in items:
+        serialized_items.append(await _serialize_product(item))
 
     return {
         "success": True,
-        "data": [_serialize_product(item) for item in items],
+        "data": serialized_items,
         "meta": {
             "page": page,
             "limit": limit,
@@ -88,13 +104,13 @@ async def getProduct(*, product_id: str):
     product = await Product.get(product_id)
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-    return {"success": True, "data": _serialize_product(product)}
+    return {"success": True, "data": await _serialize_product(product)}
 
 
 async def createProduct(*, payload: dict):
     product = Product(**payload)
     await product.insert()
-    return {"success": True, "data": _serialize_product(product)}
+    return {"success": True, "data": await _serialize_product(product)}
 
 
 async def updateProduct(*, product_id: str, payload: dict):
@@ -104,7 +120,7 @@ async def updateProduct(*, product_id: str, payload: dict):
     for key, value in payload.items():
         setattr(product, key, value)
     await product.save()
-    return {"success": True, "data": _serialize_product(product)}
+    return {"success": True, "data": await _serialize_product(product)}
 
 
 async def deleteProduct(*, product_id: str):

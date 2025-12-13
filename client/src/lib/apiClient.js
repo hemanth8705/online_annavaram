@@ -144,6 +144,10 @@ export function listOrders(accessToken, options = {}) {
   return request('/orders', { accessToken, ...options });
 }
 
+export function getOrder(accessToken, orderId, options = {}) {
+  return request(`/orders/${orderId}`, { accessToken, ...options });
+}
+
 export function signup(payload, options = {}) {
   return request('/auth/signup', { method: 'POST', data: payload, ...options });
 }

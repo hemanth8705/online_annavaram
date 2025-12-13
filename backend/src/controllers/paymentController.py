@@ -6,7 +6,8 @@ from typing import Any, Dict, Optional
 from beanie.odm.fields import PydanticObjectId
 from fastapi import HTTPException, Request, status
 
-from ..models import Order, OrderItem, Payment, User
+from ..models import Cart, Order, OrderItem, Payment, User
+from ..services.cartService import clearCart
 from ..services.paymentService import (
     PaymentServiceError,
     verifyRazorpaySignature,
@@ -137,6 +138,15 @@ async def verifyRazorpayPayment(
 
     items = await OrderItem.find(OrderItem.order == order.id).to_list()
 
+    # Clear the user's cart after successful payment verification
+    cart = await Cart.find_one(Cart.user == user.id)
+    if cart:
+        await clearCart(cart.id)
+        logger.info(
+            "Cart cleared after payment verification",
+            extra={"userId": str(user.id), "cartId": str(cart.id)},
+        )
+
     logger.info(
         "Payment verified",
         extra={
@@ -236,6 +246,17 @@ async def handleRazorpayWebhook(request: Request):
         if status_value == "captured":
             order.status = "paid"
             await order.save()
+            
+            # Clear the user's cart after successful payment via webhook
+            user = await User.get(order.user)
+            if user:
+                cart = await Cart.find_one(Cart.user == user.id)
+                if cart:
+                    await clearCart(cart.id)
+                    logger.info(
+                        "Cart cleared after webhook payment capture",
+                        extra={"userId": str(user.id), "cartId": str(cart.id), "orderId": str(order.id)},
+                    )
         elif status_value == "failed":
             order.status = "pending_payment"
             await order.save()
@@ -287,6 +308,18 @@ async def handleRazorpayWebhook(request: Request):
 
             order.status = "paid"
             await order.save()
+            
+            # Clear the user's cart after successful payment via webhook
+            user = await User.get(order.user)
+            if user:
+                cart = await Cart.find_one(Cart.user == user.id)
+                if cart:
+                    await clearCart(cart.id)
+                    logger.info(
+                        "Cart cleared after order.paid webhook",
+                        extra={"userId": str(user.id), "cartId": str(cart.id), "orderId": str(order.id)},
+                    )
+            
             logger.info(
                 "Razorpay order paid event processed",
                 extra={

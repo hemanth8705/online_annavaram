@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../lib/formatters';
 import QuantityInput from '../common/QuantityInput';
+import { StarRating } from '../common/ReviewModal';
 import useCart from '../../hooks/useCart';
 import useAuth from '../../hooks/useAuth';
 import useWishlist from '../../hooks/useWishlist';
@@ -100,6 +101,14 @@ const ProductCard = ({ product }) => {
         <h3 className="product-name">
           <Link to={productLink}>{product.name}</Link>
         </h3>
+        {product.averageRating > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <StarRating rating={product.averageRating} />
+            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              ({product.reviewCount || 0})
+            </span>
+          </div>
+        )}
         <span className="product-price">{price}</span>
 
         {!cartItem && (
