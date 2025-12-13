@@ -189,6 +189,18 @@ export function deleteAddress(accessToken, addressId, options = {}) {
   return request(`/auth/addresses/${addressId}`, { method: 'DELETE', accessToken, ...options });
 }
 
+export function updatePhone(accessToken, payload, options = {}) {
+  return request('/auth/phone', { method: 'PUT', data: payload, accessToken, ...options });
+}
+
+export function requestEmailChangeOtp(accessToken, payload, options = {}) {
+  return request('/auth/email/request-change', { method: 'POST', data: payload, accessToken, ...options });
+}
+
+export function verifyEmailChange(accessToken, payload, options = {}) {
+  return request('/auth/email/verify-change', { method: 'POST', data: payload, accessToken, ...options });
+}
+
 export function requestPasswordReset(payload, options = {}) {
   return request('/auth/forgot-password', { method: 'POST', data: payload, ...options });
 }

@@ -26,6 +26,7 @@ function normaliseUser(user) {
     phone: user.phone,
     role: user.role,
     emailVerified: Boolean(user.emailVerified),
+    createdAt: user.createdAt,
   };
 }
 
@@ -244,6 +245,15 @@ export const AuthProvider = ({ children }) => {
     keysToRemove.forEach(key => localStorage.removeItem(key));
   }, [persistAccessToken, persistUser]);
 
+  const updateUser = useCallback((updatedUserData) => {
+    const nextUser = normaliseUser(updatedUserData);
+    if (nextUser) {
+      setUser(nextUser);
+      persistUser(nextUser);
+    }
+    return nextUser;
+  }, [persistUser]);
+
   const refreshSession = useCallback(async () => {
     try {
       const response = await refreshSessionRequest();
@@ -274,6 +284,7 @@ export const AuthProvider = ({ children }) => {
       resetPassword,
       logout,
       refreshSession,
+      updateUser,
       setAuthError,
       setPendingEmail,
     }),
@@ -292,6 +303,7 @@ export const AuthProvider = ({ children }) => {
       signup,
       user,
       verifyEmail,
+      updateUser,
       setAuthError,
       setPendingEmail,
     ]

@@ -465,6 +465,7 @@ const CheckoutPage = () => {
       }
 
       console.log('[Checkout] Opening Razorpay checkout');
+      setStatus('initializing-payment');
       await openRazorpayCheckout({ orderResponse: response, payload });
     } catch (err) {
       console.error('Checkout failed', err);
@@ -473,7 +474,8 @@ const CheckoutPage = () => {
         state: { message: err.message || 'Unable to process order right now.' },
       });
     } finally {
-      setStatus('idle');
+      // Only set to idle if still in submitting/initializing state
+      setStatus(prev => (prev === 'submitting' || prev === 'initializing-payment') ? 'idle' : prev);
     }
   };
 
@@ -611,9 +613,9 @@ const CheckoutPage = () => {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={status === 'submitting' || isCartEmpty || addressStatus === 'saving'}
+                  disabled={status === 'submitting' || status === 'initializing-payment' || isCartEmpty || addressStatus === 'saving'}
                 >
-                  {status === 'submitting' ? 'Processing...' : 'Place Order'}
+                  {status === 'submitting' ? 'Processing...' : status === 'initializing-payment' ? 'Initializing Razorpay...' : 'Place Order'}
                 </button>
               </form>
 
@@ -953,9 +955,9 @@ const CheckoutPage = () => {
                 type="button"
                 className="btn btn-primary"
                 onClick={confirmAndPlaceOrder}
-                disabled={status === 'submitting'}
+                disabled={status === 'submitting' || status === 'initializing-payment'}
               >
-                {status === 'submitting' ? 'Processing...' : 'Confirm Order →'}
+                {status === 'submitting' ? 'Processing...' : status === 'initializing-payment' ? 'Initializing Razorpay...' : 'Confirm Order →'}
               </button>
             </div>
           </div>

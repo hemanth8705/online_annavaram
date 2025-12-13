@@ -2,10 +2,29 @@ import React, { useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../lib/formatters';
 import QuantityInput from '../common/QuantityInput';
-import { StarRating } from '../common/ReviewModal';
 import useCart from '../../hooks/useCart';
 import useAuth from '../../hooks/useAuth';
 import useWishlist from '../../hooks/useWishlist';
+import { useToast } from '../../context/ToastContext';
+
+// Compact Star Rating Display for product cards
+const ProductRating = ({ rating, reviewCount }) => {
+  if (!rating || rating === 0) return null;
+  
+  return (
+    <span style={{ 
+      display: 'inline-flex', 
+      alignItems: 'center', 
+      gap: '0.25rem',
+      fontSize: '0.8rem',
+      color: '#6b7280'
+    }}>
+      <span style={{ color: '#fbbf24' }}>★</span>
+      <span style={{ fontWeight: '500' }}>{rating.toFixed(1)}</span>
+      {reviewCount > 0 && <span>({reviewCount})</span>}
+    </span>
+  );
+};
 
 function resolveProductId(product = {}) {
   const rawId =
@@ -23,6 +42,7 @@ const ProductCard = ({ product }) => {
   const { cart, addItem, updateItemQuantity } = useCart();
   const { accessToken, hydrated } = useAuth();
   const { isWishlisted, toggleWishlist } = useWishlist();
+  const { showToast } = useToast();
 
   const productId = resolveProductId(product);
   const price = formatCurrency(product.price);
@@ -41,6 +61,7 @@ const ProductCard = ({ product }) => {
   const handleAddToCartClick = async () => {
     console.log('[UI] Add to Cart clicked', { productId, product, cartItem });
     if (!hydrated || !accessToken) {
+      showToast('Please log in to add items to your cart', 'info');
       navigate('/auth/login', {
         replace: false,
         state: { from: `${location.pathname}${location.search}` },
@@ -49,8 +70,10 @@ const ProductCard = ({ product }) => {
     }
     try {
       await addItem(product, 1);
+      showToast(`${product.name} added to cart!`, 'success');
     } catch (error) {
       console.error('[UI] Failed to add item from product card', error);
+      showToast('Failed to add item to cart', 'error');
     }
   };
 
@@ -69,6 +92,18 @@ const ProductCard = ({ product }) => {
   const handleGoToCart = () => {
     console.log('[UI] Navigating to cart from product card', { productId });
     navigate('/cart');
+  };
+
+  const handleWishlistClick = () => {
+    if (!hydrated || !accessToken) {
+      showToast('Please log in to add items to your wishlist', 'info');
+      navigate('/auth/login', {
+        replace: false,
+        state: { from: `${location.pathname}${location.search}` },
+      });
+      return;
+    }
+    toggleWishlist(product);
   };
 
   const productLink = productId ? `/products/${productId}` : '/products';
@@ -90,25 +125,20 @@ const ProductCard = ({ product }) => {
           type="button"
           className={`wishlist-heart ${wishlisted ? 'wishlist-heart--active' : ''}`}
           aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          onClick={() => toggleWishlist(product)}
+          onClick={handleWishlistClick}
           disabled={!hydrated}
         >
           {wishlisted ? '♥' : '♡'}
         </button>
       </div>
       <div className="product-info">
-        <span className="product-category">{product.category}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+          <span className="product-category">{product.category}</span>
+          <ProductRating rating={product.averageRating} reviewCount={product.reviewCount} />
+        </div>
         <h3 className="product-name">
           <Link to={productLink}>{product.name}</Link>
         </h3>
-        {product.averageRating > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <StarRating rating={product.averageRating} />
-            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-              ({product.reviewCount || 0})
-            </span>
-          </div>
-        )}
         <span className="product-price">{price}</span>
 
         {!cartItem && (
@@ -123,9 +153,21 @@ const ProductCard = ({ product }) => {
         )}
 
         {cartItem && (
-          <div className="product-card__controls">
-            <QuantityInput value={cartItem.quantity} onChange={handleQuantityChange} min={0} max={10} />
-            <button type="button" className="btn btn-primary" onClick={handleGoToCart}>
+          <div className="product-card__controls" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <QuantityInput value={cartItem.quantity} onChange={handleQuantityChange} min={0} max={10} />
+              <span
+                style={{
+                  marginLeft: 'auto',
+                  fontSize: '0.875rem',
+                  color: '#ffffff',
+                  fontWeight: 500,
+                }}
+              >
+                {formatCurrency(product.price * cartItem.quantity)}
+              </span>
+            </div>
+            <button type="button" className="btn btn-primary" onClick={handleGoToCart} style={{ width: '100%' }}>
               Go to Cart
             </button>
           </div>

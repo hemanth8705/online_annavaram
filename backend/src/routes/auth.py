@@ -55,6 +55,19 @@ class AddressPayload(BaseModel):
     country: str = Field(default="IN", min_length=2, max_length=64)
 
 
+class UpdatePhonePayload(BaseModel):
+    phone: str = Field(..., min_length=10)
+
+
+class RequestEmailChangePayload(BaseModel):
+    newEmail: EmailStr
+
+
+class VerifyEmailChangePayload(BaseModel):
+    newEmail: EmailStr
+    otp: str = Field(..., min_length=4, max_length=8)
+
+
 @router.post("/signup")
 async def signup(payload: SignupPayload, response: Response, background: BackgroundTasks):
     return await authController.signup(
@@ -159,6 +172,24 @@ async def update_address(addressId: str, payload: AddressPayload, request: Reque
 @router.delete("/addresses/{addressId}")
 async def delete_address(addressId: str, request: Request, user: User = Depends(authenticate)):
     return await authController.deleteAddress(request=request, address_id=addressId)
+
+
+@router.put("/phone")
+async def update_phone(payload: UpdatePhonePayload, request: Request, user: User = Depends(authenticate)):
+    """Update user's phone number."""
+    return await authController.updatePhone(request=request, phone=payload.phone)
+
+
+@router.post("/email/request-change")
+async def request_email_change(payload: RequestEmailChangePayload, request: Request, background: BackgroundTasks, user: User = Depends(authenticate)):
+    """Request OTP to change email address."""
+    return await authController.requestEmailChangeOtp(request=request, newEmail=payload.newEmail, background=background)
+
+
+@router.post("/email/verify-change")
+async def verify_email_change(payload: VerifyEmailChangePayload, request: Request, user: User = Depends(authenticate)):
+    """Verify OTP and change email address."""
+    return await authController.verifyEmailChange(request=request, newEmail=payload.newEmail, otp=payload.otp)
 
 
 class GoogleAuthPayload(BaseModel):

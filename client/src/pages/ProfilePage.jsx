@@ -6,7 +6,7 @@ import ErrorMessage from '../components/common/ErrorMessage';
 import Modal from '../components/common/Modal';
 import useAuth from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
-import { listOrders, createReview, verifyRazorpayPayment } from '../lib/apiClient';
+import { listOrders, createReview, verifyRazorpayPayment, updatePhone, requestEmailChangeOtp, verifyEmailChange } from '../lib/apiClient';
 import { formatCurrency } from '../lib/formatters';
 
 // Load Razorpay Script
@@ -23,8 +23,40 @@ const loadRazorpayScript = () =>
     document.body.appendChild(script);
   });
 
+// Interactive Star Rating Component
+const InteractiveStarRating = ({ rating, onRatingChange }) => {
+  const [hoverRating, setHoverRating] = useState(0);
+
+  return (
+    <div style={{ display: 'flex', gap: '0.25rem' }}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => onRatingChange(star)}
+          onMouseEnter={() => setHoverRating(star)}
+          onMouseLeave={() => setHoverRating(0)}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0.25rem',
+            fontSize: '2rem',
+            color: star <= (hoverRating || rating) ? '#fbbf24' : '#d1d5db',
+            transition: 'color 0.15s, transform 0.15s',
+            transform: star <= hoverRating ? 'scale(1.1)' : 'scale(1)',
+          }}
+          aria-label={`${star} star${star !== 1 ? 's' : ''}`}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  );
+};
+
 const ProfilePage = () => {
-  const { user, accessToken, hydrated } = useAuth();
+  const { user, accessToken, hydrated, updateUser } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -282,9 +314,21 @@ const ProfilePage = () => {
 
   const handlePhoneSubmit = async (e) => {
     e.preventDefault();
+    if (!phoneNumber || phoneNumber.length < 10) {
+      showToast('Please enter a valid phone number', 'error');
+      return;
+    }
     setProfileLoading(true);
     try {
-      showToast('Phone number update feature coming soon', 'info');
+      const response = await updatePhone(accessToken, { phone: phoneNumber });
+      // Update user in context without page reload
+      if (response?.data?.user) {
+        updateUser(response.data.user);
+      } else {
+        // Manually update phone in current user
+        updateUser({ ...user, phone: phoneNumber });
+      }
+      showToast('Phone number updated successfully!', 'success');
       setShowPhoneModal(false);
     } catch (err) {
       showToast(err.message || 'Failed to update phone number', 'error');
@@ -295,22 +339,37 @@ const ProfilePage = () => {
 
   // Email Edit with OTP
   const openEmailModal = () => {
-    setNewEmail(user?.email || '');
+    setNewEmail('');
     setEmailOtp('');
     setEmailOtpSent(false);
     setShowEmailModal(true);
   };
 
   const handleSendEmailOtp = async () => {
-    if (!newEmail || newEmail === user?.email) {
+    if (!newEmail) {
       showToast('Please enter a new email address', 'error');
+      return;
+    }
+    if (newEmail.toLowerCase() === user?.email?.toLowerCase()) {
+      showToast('This is already your email address', 'error');
       return;
     }
     setProfileLoading(true);
     try {
-      showToast('Email change feature coming soon', 'info');
+      await requestEmailChangeOtp(accessToken, { newEmail });
+      setEmailOtpSent(true);
+      showToast(`OTP sent to ${newEmail}. Please check your inbox.`, 'success');
     } catch (err) {
-      showToast(err.message || 'Failed to send OTP', 'error');
+      // Handle specific error cases
+      if (err.message?.includes('already your email')) {
+        showToast('This is already your email address', 'error');
+      } else if (err.message?.includes('already exists')) {
+        showToast('An account already exists with this email address', 'error');
+      } else if (err.message?.includes('limit reached')) {
+        showToast('OTP request limit reached. Please try again later.', 'error');
+      } else {
+        showToast(err.message || 'Failed to send OTP', 'error');
+      }
     } finally {
       setProfileLoading(false);
     }
@@ -323,16 +382,32 @@ const ProfilePage = () => {
       return;
     }
     
+    if (!emailOtp || emailOtp.length < 4) {
+      showToast('Please enter the OTP sent to your email', 'error');
+      return;
+    }
+    
     setProfileLoading(true);
     try {
-      showToast('Email verification feature coming soon', 'info');
+      const response = await verifyEmailChange(accessToken, { newEmail, otp: emailOtp });
+      // Update user in context without page reload
+      if (response?.data?.user) {
+        updateUser(response.data.user);
+      } else {
+        // Manually update email in current user
+        updateUser({ ...user, email: newEmail.toLowerCase() });
+      }
+      showToast('Email address updated successfully!', 'success');
       setShowEmailModal(false);
+      // Reset state for next time
+      setNewEmail('');
+      setEmailOtp('');
+      setEmailOtpSent(false);
     } catch (err) {
       showToast(err.message || 'Failed to verify email', 'error');
     } finally {
       setProfileLoading(false);
     }
-  };
   };
 
   // Show loading state while hydrating auth
@@ -1009,28 +1084,10 @@ const ProfilePage = () => {
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
               Rating <span style={{ color: '#ef4444' }}>*</span>
             </label>
-            <div style={{ display: 'flex', gap: '0.5rem', fontSize: '2rem' }}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => setReviewRating(star)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                    color: star <= reviewRating ? '#fbbf24' : '#d1d5db',
-                    transition: 'color 0.2s'
-                  }}
-                >
-                  ★
-                </button>
-              ))}
-            </div>
+            <InteractiveStarRating rating={reviewRating} onRatingChange={setReviewRating} />
             {reviewRating > 0 && (
               <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
-                You rated {reviewRating} star{reviewRating !== 1 ? 's' : ''}
+                You rated {reviewRating} star{reviewRating !== 1 ? 's' : ''} - {['Poor', 'Fair', 'OK', 'Good', 'Excellent'][reviewRating - 1]}
               </p>
             )}
           </div>
@@ -1058,7 +1115,7 @@ const ProfilePage = () => {
 
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-              Your Review <span style={{ color: '#ef4444' }}>*</span>
+              Your Review (optional)
             </label>
             <textarea
               value={reviewComment}

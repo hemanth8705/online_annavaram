@@ -44,6 +44,7 @@ class User(TimeStampedDocument):
     emailVerification: OTPState = Field(default_factory=OTPState)
     passwordReset: OTPState = Field(default_factory=OTPState)
     googleId: Optional[str] = None  # Google user ID (sub claim)
+    pendingEmail: Optional[str] = None  # Temporary storage for email change
 
     class Settings:
         name = "users"

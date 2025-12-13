@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import LoadingState from '../components/common/LoadingState';
 import ErrorMessage from '../components/common/ErrorMessage';
+import Modal from '../components/common/Modal';
 import QuantityInput from '../components/common/QuantityInput';
 import { getProductById, getProductReviews, createReview } from '../lib/apiClient';
 import { FALLBACK_PRODUCTS } from '../config/site';
@@ -10,14 +11,58 @@ import { formatCurrency } from '../lib/formatters';
 import useCart from '../hooks/useCart';
 import useAuth from '../hooks/useAuth';
 import useWishlist from '../hooks/useWishlist';
+import { useToast } from '../context/ToastContext';
+
+// Interactive Star Rating Component
+const StarRatingInput = ({ rating, onRatingChange }) => {
+  const [hoverRating, setHoverRating] = useState(0);
+
+  return (
+    <div style={{ display: 'flex', gap: '0.25rem' }}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => onRatingChange(star)}
+          onMouseEnter={() => setHoverRating(star)}
+          onMouseLeave={() => setHoverRating(0)}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0.25rem',
+            fontSize: '2rem',
+            color: star <= (hoverRating || rating) ? '#fbbf24' : '#d1d5db',
+            transition: 'color 0.15s, transform 0.15s',
+            transform: star <= hoverRating ? 'scale(1.1)' : 'scale(1)',
+          }}
+          aria-label={`${star} star${star !== 1 ? 's' : ''}`}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// Display-only Star Rating Component
+const StarRatingDisplay = ({ rating, size = '1rem' }) => {
+  return (
+    <span style={{ color: '#fbbf24', fontSize: size }}>
+      {'★'.repeat(Math.floor(rating))}
+      {'☆'.repeat(5 - Math.floor(rating))}
+    </span>
+  );
+};
 
 const ProductDetailPage = () => {
   const { productId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { addItem } = useCart();
+  const { cart, addItem, updateItemQuantity } = useCart();
   const { accessToken, hydrated, user } = useAuth();
   const { toggleWishlist, isWishlisted } = useWishlist();
+  const { showToast } = useToast();
   const [product, setProduct] = useState(null);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
@@ -26,7 +71,9 @@ const ProductDetailPage = () => {
   const [reviewStats, setReviewStats] = useState({ averageRating: 0, totalReviews: 0 });
   const [reviewStatus, setReviewStatus] = useState('idle');
   const [reviewError, setReviewError] = useState(null);
-  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' });
+  const [reviewForm, setReviewForm] = useState({ rating: 0, title: '', comment: '' });
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -95,21 +142,56 @@ const ProductDetailPage = () => {
   );
   const wishlisted = isWishlisted(product);
 
+  // Find if product is already in cart
+  const cartItem = useMemo(() => {
+    if (!productId) return undefined;
+    return cart.items.find((item) => {
+      const itemId = String(item.productId || item.id || '');
+      return itemId === productId || itemId === `local-${productId}`;
+    });
+  }, [cart.items, productId]);
+
   const handleAddToCart = async () => {
-    console.log('[ProductDetail] add to cart clicked', { productId, quantity });
+    console.log('[ProductDetail] add to cart clicked', { productId });
     if (!hydrated || !accessToken) {
+      showToast('Please log in to add items to your cart', 'info');
       navigate('/auth/login', {
         replace: false,
         state: { from: `${location.pathname}${location.search}` },
       });
       return;
     }
-    await addItem(product, quantity);
-    navigate('/cart', { state: { from: `/products/${productId}` } });
+    setAddingToCart(true);
+    try {
+      await addItem(product, 1);
+      showToast(`${product.name} added to cart!`, 'success');
+    } catch (err) {
+      console.error('Failed to add to cart', err);
+      showToast(err.message || 'Unable to add item to cart. Please try again.', 'error');
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  const handleUpdateCartQuantity = (newQuantity) => {
+    if (!cartItem) return;
+    updateItemQuantity(cartItem.id, newQuantity);
+  };
+
+  const handleGoToCart = () => {
+    navigate('/cart');
   };
 
   const handleToggleWishlist = () => {
     if (!product) return;
+    if (!hydrated || !accessToken) {
+      showToast('Please log in to add items to your wishlist', 'info');
+      navigate('/auth/login', {
+        replace: false,
+        state: { from: `${location.pathname}${location.search}` },
+      });
+      return;
+    }
     toggleWishlist(product);
   };
 
@@ -118,10 +200,23 @@ const ProductDetailPage = () => {
     setReviewForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleOpenReviewModal = () => {
+    if (!accessToken) {
+      navigate('/auth/login', { state: { from: location.pathname } });
+      return;
+    }
+    setReviewForm({ rating: 0, title: '', comment: '' });
+    setShowReviewModal(true);
+  };
+
   const handleReviewSubmit = async (event) => {
     event.preventDefault();
     if (!accessToken) {
       navigate('/auth/login', { state: { from: location.pathname } });
+      return;
+    }
+    if (reviewForm.rating === 0) {
+      showToast('Please select a rating', 'error');
       return;
     }
     setReviewStatus('saving');
@@ -133,11 +228,14 @@ const ProductDetailPage = () => {
         title: reviewForm.title,
         comment: reviewForm.comment,
       });
-      setReviewForm({ rating: 5, title: '', comment: '' });
+      setReviewForm({ rating: 0, title: '', comment: '' });
+      setShowReviewModal(false);
+      showToast('Review submitted successfully!', 'success');
       await loadReviews(product._id || product.id);
     } catch (err) {
       console.warn('Failed to submit review', err);
       setReviewError(err);
+      showToast(err.message || 'Failed to submit review', 'error');
     } finally {
       setReviewStatus('ready');
     }
@@ -163,8 +261,34 @@ const ProductDetailPage = () => {
 
             {(status === 'ready' || status === 'fallback') && product && (
             <div className="product-detail__grid">
-              <div className="product-detail__image">
+              <div className="product-detail__image" style={{ position: 'relative' }}>
                 <img src={image} alt={product.name} />
+                <button
+                  type="button"
+                  className={`wishlist-heart ${wishlisted ? 'wishlist-heart--active' : ''}`}
+                  aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                  onClick={handleToggleWishlist}
+                  disabled={!hydrated}
+                  style={{
+                    position: 'absolute',
+                    top: '1rem',
+                    left: '1rem',
+                    width: '2.5rem',
+                    height: '2.5rem',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    border: '1px solid #e5e7eb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.25rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    zIndex: 10
+                  }}
+                >
+                  {wishlisted ? '♥' : '♡'}
+                </button>
               </div>
               <div className="product-detail__info">
                 <p className="product-detail__breadcrumb">
@@ -175,20 +299,45 @@ const ProductDetailPage = () => {
                 </p>
                 <h1>{product.name}</h1>
                 {product.description && <p className="product-detail__description">{product.description}</p>}
-                <p className="product-detail__price">{formatCurrency(product.price)}</p>
+                <div className="product-detail__price-section">
+                  <p className="product-detail__price">{formatCurrency(product.price)}</p>
+                  {cartItem && cartItem.quantity > 1 && (
+                    <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                      Total: {formatCurrency(product.price * cartItem.quantity)} ({cartItem.quantity} items)
+                    </p>
+                  )}
+                </div>
 
                 <div className="product-detail__actions">
-                  <QuantityInput value={quantity} onChange={setQuantity} min={1} max={10} />
-                  <button type="button" className="btn btn-primary" onClick={handleAddToCart}>
-                    Add to Cart
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn btn-outline ${wishlisted ? 'btn-outline--active' : ''}`}
-                    onClick={handleToggleWishlist}
-                  >
-                    {wishlisted ? 'Wishlisted' : 'Add to Wishlist'}
-                  </button>
+                  {!cartItem ? (
+                    <button 
+                      type="button" 
+                      className="btn btn-primary" 
+                      onClick={handleAddToCart}
+                      disabled={addingToCart || !hydrated}
+                    >
+                      {addingToCart ? 'Adding...' : 'Add to Cart'}
+                    </button>
+                  ) : (
+                    <>
+                      <QuantityInput 
+                        value={cartItem.quantity} 
+                        onChange={handleUpdateCartQuantity} 
+                        min={0} 
+                        max={10} 
+                      />
+                      <span style={{ fontSize: '0.875rem', color: '#059669', fontWeight: '500' }}>
+                        {formatCurrency(product.price * cartItem.quantity)}
+                      </span>
+                      <button 
+                        type="button" 
+                        className="btn btn-primary" 
+                        onClick={handleGoToCart}
+                      >
+                        Go to Cart
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 <ul className="product-detail__meta">
@@ -208,94 +357,176 @@ const ProductDetailPage = () => {
           )}
           {(status === 'ready' || status === 'fallback') && (
             <div className="reviews-section">
-              <header className="reviews-header">
+              <header className="reviews-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
                   <h2>Customer Reviews</h2>
-                  <p>
-                    {reviewStats.totalReviews > 0
-                      ? `${reviewStats.averageRating}★ average from ${reviewStats.totalReviews} review${reviewStats.totalReviews > 1 ? 's' : ''}`
-                      : 'No reviews yet'}
-                  </p>
+                  {reviewStats.totalReviews > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <StarRatingDisplay rating={reviewStats.averageRating} size="1.25rem" />
+                      <span style={{ color: '#6b7280' }}>
+                        {reviewStats.averageRating.toFixed(1)} from {reviewStats.totalReviews} review{reviewStats.totalReviews !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <p style={{ color: '#6b7280', marginTop: '0.25rem' }}>No reviews yet</p>
+                  )}
                 </div>
+                <button 
+                  type="button" 
+                  className="btn btn-primary" 
+                  onClick={handleOpenReviewModal}
+                >
+                  Write a Review
+                </button>
               </header>
 
-              {reviewError && (
+              {reviewError && !showReviewModal && (
                 <p className="form-error">
                   {reviewError.message || 'Unable to load reviews. Please try again.'}
                 </p>
               )}
 
-              {reviews.length === 0 && <p className="empty-state">No reviews yet. Be the first to share your experience.</p>}
+              {reviews.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
+                  <p style={{ color: '#6b7280', marginBottom: '1rem' }}>No reviews yet. Be the first to share your experience!</p>
+                </div>
+              )}
 
               {reviews.length > 0 && (
-                <ul className="reviews-list">
+                <ul className="reviews-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                   {reviews.map((rev) => (
-                    <li key={rev.id} className="review-card">
-                      <div className="review-card__header">
-                        <div className="review-rating">{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</div>
-                        <div className="review-meta">
-                          <strong>{rev.user?.fullName || 'Customer'}</strong>
-                          {rev.isVerifiedPurchase && <span className="verified-badge">Verified purchase</span>}
-                          {rev.createdAt && <span className="review-date">{new Date(rev.createdAt).toLocaleDateString()}</span>}
+                    <li key={rev.id} className="review-card" style={{ 
+                      padding: '1.25rem', 
+                      borderBottom: '1px solid #e5e7eb',
+                      marginBottom: '0'
+                    }}>
+                      <div className="review-card__header" style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                          <StarRatingDisplay rating={rev.rating} />
+                          <span style={{ fontWeight: '500' }}>{rev.user?.fullName || 'Customer'}</span>
+                          {rev.isVerifiedPurchase && (
+                            <span style={{ 
+                              fontSize: '0.75rem', 
+                              backgroundColor: '#dcfce7', 
+                              color: '#166534',
+                              padding: '0.125rem 0.5rem',
+                              borderRadius: '9999px'
+                            }}>
+                              Verified purchase
+                            </span>
+                          )}
+                          {rev.createdAt && (
+                            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                              {new Date(rev.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      {rev.title && <h4>{rev.title}</h4>}
-                      {rev.comment && <p>{rev.comment}</p>}
+                      {rev.title && <h4 style={{ margin: '0 0 0.5rem', fontWeight: '600' }}>{rev.title}</h4>}
+                      {rev.comment && <p style={{ margin: 0, color: '#374151', lineHeight: '1.6' }}>{rev.comment}</p>}
                     </li>
                   ))}
                 </ul>
               )}
-
-              <div className="review-form-card">
-                <h3>Write a Review</h3>
-                {!accessToken && (
-                  <p className="form-hint">
-                    <button type="button" className="btn btn-primary" onClick={() => navigate('/auth/login', { state: { from: location.pathname } })}>
-                      Log in to write a review
-                    </button>
-                  </p>
-                )}
-                {accessToken && (
-                  <form className="review-form" onSubmit={handleReviewSubmit}>
-                    <div className="form-field">
-                      <label htmlFor="rating">Rating</label>
-                      <select id="rating" name="rating" value={reviewForm.rating} onChange={handleReviewChange}>
-                        {[5, 4, 3, 2, 1].map((val) => (
-                          <option key={val} value={val}>{val} - {['Excellent','Good','OK','Fair','Poor'][5 - val]}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-field">
-                      <label htmlFor="title">Title</label>
-                      <input
-                        id="title"
-                        name="title"
-                        value={reviewForm.title}
-                        onChange={handleReviewChange}
-                        placeholder="Summarize your experience"
-                      />
-                    </div>
-                    <div className="form-field">
-                      <label htmlFor="comment">Comment</label>
-                      <textarea
-                        id="comment"
-                        name="comment"
-                        value={reviewForm.comment}
-                        onChange={handleReviewChange}
-                        rows={3}
-                        placeholder="Share details others would find helpful"
-                      />
-                    </div>
-                    <button type="submit" className="btn btn-primary" disabled={reviewStatus === 'saving'}>
-                      {reviewStatus === 'saving' ? 'Submitting...' : 'Submit Review'}
-                    </button>
-                  </form>
-                )}
-              </div>
             </div>
           )}
         </div>
       </section>
+
+      {/* Review Modal */}
+      <Modal
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        title="Write a Review"
+      >
+        <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div>
+            <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1rem' }}>
+              Reviewing: <strong>{product?.name}</strong>
+            </p>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+              Rating <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <StarRatingInput 
+              rating={reviewForm.rating} 
+              onRatingChange={(val) => setReviewForm(prev => ({ ...prev, rating: val }))} 
+            />
+            {reviewForm.rating > 0 && (
+              <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                You rated {reviewForm.rating} star{reviewForm.rating !== 1 ? 's' : ''} - {['Poor', 'Fair', 'OK', 'Good', 'Excellent'][reviewForm.rating - 1]}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="review-title" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+              Review Title (optional)
+            </label>
+            <input
+              id="review-title"
+              type="text"
+              name="title"
+              value={reviewForm.title}
+              onChange={handleReviewChange}
+              placeholder="Summarize your experience"
+              maxLength={100}
+              disabled={reviewStatus === 'saving'}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                fontSize: '1rem'
+              }}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="review-comment" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+              Your Review (optional)
+            </label>
+            <textarea
+              id="review-comment"
+              name="comment"
+              value={reviewForm.comment}
+              onChange={handleReviewChange}
+              rows={4}
+              placeholder="Share details about your experience with this product"
+              maxLength={1000}
+              disabled={reviewStatus === 'saving'}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                fontSize: '1rem',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => setShowReviewModal(false)}
+              disabled={reviewStatus === 'saving'}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={reviewStatus === 'saving' || reviewForm.rating === 0}
+              className="btn btn-primary"
+            >
+              {reviewStatus === 'saving' ? 'Submitting...' : 'Submit Review'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </Layout>
   );
 };

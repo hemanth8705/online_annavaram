@@ -427,6 +427,83 @@ async def deleteAddress(*, request: Request, address_id: str):
     return {"success": True, "data": {"addresses": _serialize_user(user)["addresses"]}}
 
 
+async def updatePhone(*, request: Request, phone: str):
+    """Update user's phone number."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    
+    # Basic phone validation
+    phone = phone.strip()
+    if len(phone) < 10:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please enter a valid phone number.")
+    
+    user.phone = phone
+    await user.save()
+    return {"success": True, "message": "Phone number updated successfully.", "data": {"user": _serialize_user(user)}}
+
+
+async def requestEmailChangeOtp(*, request: Request, newEmail: str, background: BackgroundTasks):
+    """Request OTP to change email address."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    
+    newEmail = newEmail.lower().strip()
+    
+    # Check if same email
+    if newEmail == user.email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This is already your email address.")
+    
+    # Check if email is already taken by another user
+    existing = await User.find_one(User.email == newEmail)
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account already exists with this email address.")
+    
+    # Use emailVerification OTP state for email change (reusing existing OTP infrastructure)
+    otp_payload = await assignOtp(user, "emailVerification")
+    # Store the new email in a temporary field (we'll verify it matches when confirming)
+    user.pendingEmail = newEmail
+    await user.save()
+    
+    background.add_task(
+        sendOtpEmail,
+        to=newEmail,  # Send OTP to new email to verify ownership
+        otp=otp_payload["otp"],
+        expiresMinutes=OTP_EXPIRY_MINUTES,
+    )
+    
+    return {"success": True, "message": f"OTP sent to {newEmail}. Please check your inbox."}
+
+
+async def verifyEmailChange(*, request: Request, newEmail: str, otp: str):
+    """Verify OTP and change email address."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    
+    newEmail = newEmail.lower().strip()
+    
+    # Verify the pending email matches
+    if getattr(user, "pendingEmail", None) != newEmail:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email mismatch. Please request a new OTP.")
+    
+    # Verify OTP
+    try:
+        await verifyOtp(user, "emailVerification", otp)
+    except OtpServiceError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+    
+    # Update email
+    user.email = newEmail
+    user.pendingEmail = None
+    user.emailVerified = True  # Since they verified via OTP
+    user.emailVerifiedAt = datetime.now(tz=timezone.utc)
+    await user.save()
+    
+    return {"success": True, "message": "Email address updated successfully.", "data": {"user": _serialize_user(user)}}
+
+
 async def googleAuth(*, idToken: str, request: Request, response: Response):
     """
     Authenticate user via Google ID token.
