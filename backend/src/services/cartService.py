@@ -30,6 +30,7 @@ async def buildCartSnapshot(cart_id: PydanticObjectId):
                 "quantity": item.quantity,
                 "unitPrice": item.priceAtAddition,
                 "subtotal": item.priceAtAddition * item.quantity,
+                "stock": product.stock if product else 0,
                 "productSnapshot": {
                     "slug": product.slug if product else None,
                     "stock": product.stock if product else None,

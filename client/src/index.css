@@ -289,28 +289,22 @@ a:hover {
   position: absolute;
   top: 0.5rem;
   left: 0.5rem;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #f5f1ef;
-  border-radius: 999px;
-  width: 38px;
-  height: 38px;
+  background: transparent;
+  border: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
-  color: #d1d5db;
   cursor: pointer;
   transition: all 0.2s ease;
+  padding: 0.5rem;
 }
 
 .wishlist-heart:hover {
-  border-color: #fbbf24;
+  opacity: 0.8;
 }
 
 .wishlist-heart--active {
-  color: #b45309;
-  border-color: #fbbf24;
-  background: #fff7ed;
+  /* Active state handled by HeartIcon color prop */
 }
 
 .product-info {

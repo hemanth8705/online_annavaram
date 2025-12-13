@@ -319,19 +319,20 @@ const ProductDetailPage = () => {
                     position: 'absolute',
                     top: '1rem',
                     left: '1rem',
-                    width: '2.5rem',
-                    height: '2.5rem',
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    border: '1px solid #e5e7eb',
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '0.5rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    transition: 'all 0.2s',
+                    transition: 'opacity 0.2s',
                     zIndex: 10
                   }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
-                  <HeartIcon size={24} filled={wishlisted} color={wishlisted ? '#e11d48' : 'currentColor'} />
+                  <HeartIcon size={28} filled={wishlisted} color={wishlisted ? '#b45309' : '#000000'} />
                 </button>
               </div>
               <div className="product-detail__info">

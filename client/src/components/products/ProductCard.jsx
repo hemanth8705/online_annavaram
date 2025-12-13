@@ -134,7 +134,7 @@ const ProductCard = ({ product }) => {
             justifyContent: 'center'
           }}
         >
-          <HeartIcon size={24} filled={wishlisted} color={wishlisted ? '#e11d48' : 'currentColor'} />
+          <HeartIcon size={24} filled={wishlisted} color={wishlisted ? '#b45309' : '#000000'} />
         </button>
       </div>
       <div className="product-info">

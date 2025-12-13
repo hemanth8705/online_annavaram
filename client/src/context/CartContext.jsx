@@ -51,6 +51,7 @@ function normaliseCart(payload) {
     quantity: item.quantity,
     unitPrice: item.unitPrice ?? item.priceAtAddition,
     subtotal: item.subtotal ?? item.quantity * (item.unitPrice ?? item.priceAtAddition ?? 0),
+    stock: item.stock ?? item.productSnapshot?.stock,
     productSnapshot: item.productSnapshot || {
       category: item.category,
       images: item.images,

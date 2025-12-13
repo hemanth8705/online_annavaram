@@ -95,6 +95,11 @@ const CartPage = () => {
                           min={0}
                           max={item.stock || 10}
                         />
+                        {item.stock > 0 && item.quantity >= item.stock && (
+                          <span style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '0.25rem' }}>
+                            Max stock reached
+                          </span>
+                        )}
                         <button
                           type="button"
                           className="link-button"
