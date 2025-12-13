@@ -24,22 +24,27 @@ const seedData = async () => {
     await Product.deleteMany({});
     console.log('✓ Existing data cleared\n');
 
-    // Create admin user
-    console.log('Creating admin user...');
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@annavaram.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
+    // Create admin user (only if environment variables are provided)
+    console.log('Checking admin user provisioning...');
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
-    const existingAdmin = await Admin.findOne({ email: adminEmail });
-    if (!existingAdmin) {
-      const admin = new Admin({
-        email: adminEmail,
-        password: adminPassword,
-        role: 'super_admin'
-      });
-      await admin.save();
-      console.log(`✓ Admin created: ${adminEmail}\n`);
+    if (adminEmail && adminPassword) {
+      const existingAdmin = await Admin.findOne({ email: adminEmail });
+      if (!existingAdmin) {
+        const admin = new Admin({
+          email: adminEmail,
+          password: adminPassword,
+          role: 'super_admin'
+        });
+        await admin.save();
+        console.log('✓ Admin user created (credentials not displayed)\n');
+      } else {
+        console.log('✓ Admin user already exists (credentials not displayed)\n');
+      }
     } else {
-      console.log(`✓ Admin already exists: ${adminEmail}\n`);
+      console.log('⚠️  ADMIN_EMAIL and ADMIN_PASSWORD not set. Skipping admin provisioning.');
+      console.log('   Please set ADMIN_EMAIL and ADMIN_PASSWORD in your environment before running this seed script if you want to create an admin user.');
     }
 
     // Create sample categories
@@ -109,7 +114,7 @@ const seedData = async () => {
     console.log('  Database seeding completed successfully!');
     console.log('═══════════════════════════════════════════════');
     console.log('\nYou can now:');
-    console.log(`1. Login with: ${adminEmail} / ${adminPassword}`);
+    console.log('1. Start the backend server and ensure an admin user exists (provision via env vars if needed)');
     console.log('2. View categories and products via API');
     console.log('3. Start managing your e-commerce admin panel\n');
 

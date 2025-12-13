@@ -36,8 +36,8 @@
 
 ## P4 - Growth, payments, and operations
 - [x] Razorpay subscriptions (completed).
-- [ ] Implement an admin panel for order management and analytics, including product creation, order views, and status updates for payments/orders.
-- [ ] Add admin-specific folders in this repo: `admin-client/` and `admin-backend/`.
-- [ ] Implement simple admin auth using env-configured email/password (no external SSO); block access otherwise.
+- [x] Implement an admin panel for order management and analytics, including product creation, order views, and status updates for payments/orders.
+- [x] Add admin-specific folders in this repo: `admin-client/` and `admin-backend/`.
+- [x] Implement simple admin auth using env-configured email/password (no external SSO); block access otherwise.
 - [ ] Define and implement the minimum production-ready checklist (security, scalability, reliability, monitoring).
 - [ ] Define the minimal admin panel capabilities required for public launch and prioritize them.
