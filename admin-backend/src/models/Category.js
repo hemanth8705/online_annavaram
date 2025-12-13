@@ -7,6 +7,17 @@ const categorySchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
+  slug: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true,
+    lowercase: true
+  },
+  description: {
+    type: String,
+    trim: true
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -14,9 +25,25 @@ const categorySchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
 });
 
-const Category = mongoose.model('Category', categorySchema);
+// Auto-generate slug from name if not provided
+categorySchema.pre('save', function(next) {
+  if (!this.slug && this.name) {
+    this.slug = this.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+  this.updatedAt = Date.now();
+  next();
+});
+
+const Category = mongoose.model('Category', categorySchema, 'categories');
 
 export default Category;

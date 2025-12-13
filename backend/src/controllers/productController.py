@@ -47,6 +47,16 @@ async def listProducts(
 ):
     page, limit, skip = _parse_pagination(page, limit)
     query: dict = {}
+    
+    # For user-facing queries, only show active and non-deleted products
+    if isActive is None:
+        query["isActive"] = True
+    elif isActive is not None:
+        query["isActive"] = isActive
+    
+    # Exclude deleted products from user view
+    query["isDeleted"] = False
+    
     if search:
         regex = {"$regex": search, "$options": "i"}
         query["$or"] = [
@@ -56,8 +66,6 @@ async def listProducts(
         ]
     if category:
         query["category"] = category
-    if isActive is not None:
-        query["isActive"] = isActive
     
     # Price range filtering
     if minPrice is not None or maxPrice is not None:
