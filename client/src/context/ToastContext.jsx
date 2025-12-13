@@ -6,12 +6,25 @@ export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
   const showToast = useCallback((message, type = 'success') => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    // Check if identical toast already exists
+    setToasts((prev) => {
+      const duplicate = prev.find(t => t.message === message && t.type === type);
+      if (duplicate) {
+        return prev; // Don't add duplicate
+      }
+      
+      const id = Date.now() + Math.random(); // Better unique ID
+      const newToast = { id, message, type };
+      
+      // Auto-dismiss after 3 seconds
+      setTimeout(() => {
+        setToasts((current) => current.filter((t) => t.id !== id));
+      }, 3000);
+      
+      // Limit to max 3 toasts at a time
+      const updated = [...prev, newToast];
+      return updated.length > 3 ? updated.slice(-3) : updated;
+    });
   }, []);
 
   const removeToast = useCallback((id) => {

@@ -6,6 +6,7 @@ import useCart from '../../hooks/useCart';
 import useAuth from '../../hooks/useAuth';
 import useWishlist from '../../hooks/useWishlist';
 import { useToast } from '../../context/ToastContext';
+import { HeartIcon } from '../common/Icons';
 
 // Compact Star Rating Display for product cards
 const ProductRating = ({ rating, reviewCount }) => {
@@ -127,8 +128,13 @@ const ProductCard = ({ product }) => {
           aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
           onClick={handleWishlistClick}
           disabled={!hydrated}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
         >
-          {wishlisted ? '♥' : '♡'}
+          <HeartIcon size={24} filled={wishlisted} color={wishlisted ? '#e11d48' : 'currentColor'} />
         </button>
       </div>
       <div className="product-info">
@@ -142,20 +148,27 @@ const ProductCard = ({ product }) => {
         <span className="product-price">{price}</span>
 
         {!cartItem && (
-          <button
-            type="button"
-            className="btn btn-secondary product-card__btn"
-            onClick={handleAddToCartClick}
-            disabled={!hydrated}
-          >
-            {product.actionLabel || 'Add to Cart'}
-          </button>
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary product-card__btn"
+              onClick={handleAddToCartClick}
+              disabled={!hydrated || (product.stock !== undefined && product.stock <= 0)}
+            >
+              {product.stock !== undefined && product.stock <= 0 ? 'Out of Stock' : (product.actionLabel || 'Add to Cart')}
+            </button>
+            {product.stock !== undefined && product.stock > 0 && product.stock <= 5 && (
+              <span style={{ fontSize: '0.75rem', color: '#f59e0b', textAlign: 'center' }}>
+                Only {product.stock} left!
+              </span>
+            )}
+          </>
         )}
 
         {cartItem && (
           <div className="product-card__controls" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <QuantityInput value={cartItem.quantity} onChange={handleQuantityChange} min={0} max={10} />
+              <QuantityInput value={cartItem.quantity} onChange={handleQuantityChange} min={0} max={product.stock || 10} />
               <span
                 style={{
                   marginLeft: 'auto',
@@ -167,6 +180,11 @@ const ProductCard = ({ product }) => {
                 {formatCurrency(product.price * cartItem.quantity)}
               </span>
             </div>
+            {product.stock > 0 && cartItem.quantity >= product.stock && (
+              <span style={{ fontSize: '0.75rem', color: '#f59e0b', textAlign: 'center' }}>
+                Max stock reached
+              </span>
+            )}
             <button type="button" className="btn btn-primary" onClick={handleGoToCart} style={{ width: '100%' }}>
               Go to Cart
             </button>

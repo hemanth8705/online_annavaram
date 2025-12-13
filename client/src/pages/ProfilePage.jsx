@@ -4,10 +4,12 @@ import Layout from '../components/layout/Layout';
 import LoadingState from '../components/common/LoadingState';
 import ErrorMessage from '../components/common/ErrorMessage';
 import Modal from '../components/common/Modal';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 import useAuth from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
-import { listOrders, createReview, verifyRazorpayPayment, updatePhone, requestEmailChangeOtp, verifyEmailChange } from '../lib/apiClient';
+import { listOrders, deleteOrder, createReview, verifyRazorpayPayment, updatePhone, requestEmailChangeOtp, verifyEmailChange } from '../lib/apiClient';
 import { formatCurrency } from '../lib/formatters';
+import { EditIcon, DeleteIcon } from '../components/common/Icons';
 
 // Load Razorpay Script
 const loadRazorpayScript = () =>
@@ -89,6 +91,10 @@ const ProfilePage = () => {
 
   // Payment state
   const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // Delete order confirmation
+  const [orderToDelete, setOrderToDelete] = useState(null);
+  const [deletingOrder, setDeletingOrder] = useState(false);
 
   useEffect(() => {
     if (!accessToken) {
@@ -280,6 +286,27 @@ const ProfilePage = () => {
       setReviewTitle('');
       setReviewComment('');
       setShowReviewModal(true);
+    }
+  };
+
+  const handleDeleteOrder = (order) => {
+    setOrderToDelete(order);
+  };
+
+  const confirmDeleteOrder = async () => {
+    if (!orderToDelete) return;
+    setDeletingOrder(true);
+    try {
+      await deleteOrder(accessToken, orderToDelete.id || orderToDelete._id);
+      showToast('Order deleted successfully!', 'success');
+      setOrderToDelete(null);
+      const response = await listOrders(accessToken);
+      setOrders(response?.data ?? response ?? []);
+    } catch (err) {
+      console.error('Failed to delete order', err);
+      showToast(err.message || 'Failed to delete order', 'error');
+    } finally {
+      setDeletingOrder(false);
     }
   };
 
@@ -511,12 +538,16 @@ const ProfilePage = () => {
                       border: 'none',
                       color: '#4f46e5',
                       cursor: 'pointer',
-                      fontSize: '0.875rem',
-                      textDecoration: 'underline',
-                      padding: 0
+                      padding: '0.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      transition: 'opacity 0.2s'
                     }}
+                    title="Edit email"
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                   >
-                    Edit
+                    <EditIcon size={16} />
                   </button>
                 </div>
               </div>
@@ -532,12 +563,16 @@ const ProfilePage = () => {
                       border: 'none',
                       color: '#4f46e5',
                       cursor: 'pointer',
-                      fontSize: '0.875rem',
-                      textDecoration: 'underline',
-                      padding: 0
+                      padding: '0.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      transition: 'opacity 0.2s'
                     }}
+                    title={user?.phone ? 'Edit phone' : 'Add phone'}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                   >
-                    {user?.phone ? 'Edit' : 'Add'}
+                    <EditIcon size={16} />
                   </button>
                 </div>
               </div>
@@ -647,48 +682,81 @@ const ProfilePage = () => {
                         </div>
                       )}
                       
-                      <div className="order-card__actions" style={{ 
+                      <div style={{ 
                         display: 'flex', 
-                        gap: '0.75rem', 
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-end',
                         marginTop: '1rem',
-                        flexWrap: 'wrap' 
+                        gap: '1rem',
+                        flexWrap: 'wrap'
                       }}>
-                        {order.status === 'pending_payment' && (
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() => openPaymentModal(order)}
-                            style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-                          >
-                            Make Payment
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          onClick={() => openOrderDetails(order)}
-                          style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-                        >
-                          View Details
-                        </button>
-                        {(order.status === 'shipped' || order.status === 'delivered' || order.status === 'paid') && (
+                        <div className="order-card__actions" style={{ 
+                          display: 'flex', 
+                          gap: '0.75rem', 
+                          flexWrap: 'wrap' 
+                        }}>
+                          {order.status === 'pending_payment' && (
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={() => openPaymentModal(order)}
+                              style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                            >
+                              Make Payment
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="btn btn-secondary"
-                            onClick={() => openTrackingModal(order)}
+                            onClick={() => openOrderDetails(order)}
                             style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
                           >
-                            Track Package
+                            View Details
                           </button>
-                        )}
-                        {order.status === 'delivered' && (
+                          {(order.status === 'shipped' || order.status === 'delivered' || order.status === 'paid') && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => openTrackingModal(order)}
+                              style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                            >
+                              Track Package
+                            </button>
+                          )}
+                          {order.status === 'delivered' && (
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={() => openReviewModal(order)}
+                              style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                            >
+                              Write Review
+                            </button>
+                          )}
+                        </div>
+                        {(order.status === 'pending_payment' || order.status === 'cancelled') && (
                           <button
                             type="button"
-                            className="btn btn-primary"
-                            onClick={() => openReviewModal(order)}
-                            style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                            onClick={() => handleDeleteOrder(order)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#dc2626',
+                              cursor: 'pointer',
+                              padding: '0.5rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              fontSize: '0.875rem',
+                              transition: 'opacity 0.2s',
+                              marginLeft: 'auto'
+                            }}
+                            title="Delete order"
+                            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                           >
-                            Write Review
+                            <DeleteIcon size={16} />
+                            Delete
                           </button>
                         )}
                       </div>
@@ -1282,6 +1350,18 @@ const ProfilePage = () => {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!orderToDelete}
+        onConfirm={confirmDeleteOrder}
+        onCancel={() => setOrderToDelete(null)}
+        message="Are you sure you want to delete this order?"
+        details="This action cannot be undone. The order will be permanently removed from your history."
+        confirmText="Yes, Delete Order"
+        cancelText="Cancel"
+        confirmButtonStyle="danger"
+        isProcessing={deletingOrder}
+      />
     </Layout>
   );
 };

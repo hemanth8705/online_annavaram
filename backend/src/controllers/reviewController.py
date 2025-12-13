@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import HTTPException, status
+from beanie.operators import In
 from beanie.odm.fields import PydanticObjectId
 
 from ..models import Order, OrderItem, Product, Review, User
@@ -18,7 +19,10 @@ def _invalid_object_id(object_id: str) -> bool:
 
 async def _check_verified_purchase(user_id: PydanticObjectId, product_id: PydanticObjectId) -> bool:
     """Check if user has purchased this product"""
-    orders = await Order.find(Order.user == user_id, Order.status.in_(["paid", "shipped", "delivered"])).to_list()
+    orders = await Order.find(
+        Order.user == user_id,
+        In(Order.status, ["paid", "shipped", "delivered"]),
+    ).to_list()
     
     for order in orders:
         order_items = await OrderItem.find(OrderItem.order == order.id, OrderItem.product == product_id).to_list()

@@ -4,8 +4,10 @@ import Layout from '../components/layout/Layout';
 import LoadingState from '../components/common/LoadingState';
 import ErrorMessage from '../components/common/ErrorMessage';
 import Modal from '../components/common/Modal';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 import QuantityInput from '../components/common/QuantityInput';
-import { getProductById, getProductReviews, createReview } from '../lib/apiClient';
+import { getProductById, getProductReviews, createReview, updateReview, deleteReview } from '../lib/apiClient';
+import { EditIcon, DeleteIcon, HeartIcon } from '../components/common/Icons';
 import { FALLBACK_PRODUCTS } from '../config/site';
 import { formatCurrency } from '../lib/formatters';
 import useCart from '../hooks/useCart';
@@ -73,6 +75,9 @@ const ProductDetailPage = () => {
   const [reviewError, setReviewError] = useState(null);
   const [reviewForm, setReviewForm] = useState({ rating: 0, title: '', comment: '' });
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [editingReview, setEditingReview] = useState(null);
+  const [deleteReviewId, setDeleteReviewId] = useState(null);
+  const [deletingReview, setDeletingReview] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
 
   useEffect(() => {
@@ -205,8 +210,39 @@ const ProductDetailPage = () => {
       navigate('/auth/login', { state: { from: location.pathname } });
       return;
     }
+    setEditingReview(null);
     setReviewForm({ rating: 0, title: '', comment: '' });
     setShowReviewModal(true);
+  };
+
+  const handleEditReview = (review) => {
+    setEditingReview(review);
+    setReviewForm({
+      rating: review.rating,
+      title: review.title || '',
+      comment: review.comment || ''
+    });
+    setShowReviewModal(true);
+  };
+
+  const handleDeleteReview = (reviewId) => {
+    setDeleteReviewId(reviewId);
+  };
+
+  const confirmDeleteReview = async () => {
+    if (!deleteReviewId) return;
+    setDeletingReview(true);
+    try {
+      await deleteReview(accessToken, deleteReviewId);
+      showToast('Review deleted successfully!', 'success');
+      setDeleteReviewId(null);
+      await loadReviews(product._id || product.id);
+    } catch (err) {
+      console.error('Failed to delete review', err);
+      showToast(err.message || 'Failed to delete review', 'error');
+    } finally {
+      setDeletingReview(false);
+    }
   };
 
   const handleReviewSubmit = async (event) => {
@@ -222,15 +258,25 @@ const ProductDetailPage = () => {
     setReviewStatus('saving');
     setReviewError(null);
     try {
-      await createReview(accessToken, {
-        productId: product._id || product.id,
-        rating: Number(reviewForm.rating),
-        title: reviewForm.title,
-        comment: reviewForm.comment,
-      });
+      if (editingReview) {
+        await updateReview(accessToken, editingReview.id, {
+          rating: Number(reviewForm.rating),
+          title: reviewForm.title,
+          comment: reviewForm.comment,
+        });
+        showToast('Review updated successfully!', 'success');
+      } else {
+        await createReview(accessToken, {
+          productId: product._id || product.id,
+          rating: Number(reviewForm.rating),
+          title: reviewForm.title,
+          comment: reviewForm.comment,
+        });
+        showToast('Review submitted successfully!', 'success');
+      }
       setReviewForm({ rating: 0, title: '', comment: '' });
+      setEditingReview(null);
       setShowReviewModal(false);
-      showToast('Review submitted successfully!', 'success');
       await loadReviews(product._id || product.id);
     } catch (err) {
       console.warn('Failed to submit review', err);
@@ -275,19 +321,17 @@ const ProductDetailPage = () => {
                     left: '1rem',
                     width: '2.5rem',
                     height: '2.5rem',
-                    borderRadius: '50%',
                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                     border: '1px solid #e5e7eb',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '1.25rem',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     zIndex: 10
                   }}
                 >
-                  {wishlisted ? '♥' : '♡'}
+                  <HeartIcon size={24} filled={wishlisted} color={wishlisted ? '#e11d48' : 'currentColor'} />
                 </button>
               </div>
               <div className="product-detail__info">
@@ -310,25 +354,37 @@ const ProductDetailPage = () => {
 
                 <div className="product-detail__actions">
                   {!cartItem ? (
-                    <button 
-                      type="button" 
-                      className="btn btn-primary" 
-                      onClick={handleAddToCart}
-                      disabled={addingToCart || !hydrated}
-                    >
-                      {addingToCart ? 'Adding...' : 'Add to Cart'}
-                    </button>
+                    <>
+                      <button 
+                        type="button" 
+                        className="btn btn-primary" 
+                        onClick={handleAddToCart}
+                        disabled={addingToCart || !hydrated || (product.stock !== undefined && product.stock <= 0)}
+                      >
+                        {addingToCart ? 'Adding...' : (product.stock !== undefined && product.stock <= 0 ? 'Out of Stock' : 'Add to Cart')}
+                      </button>
+                      {product.stock !== undefined && product.stock > 0 && product.stock <= 5 && (
+                        <span style={{ fontSize: '0.875rem', color: '#f59e0b', fontWeight: '500' }}>
+                          Only {product.stock} units left!
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <>
                       <QuantityInput 
                         value={cartItem.quantity} 
                         onChange={handleUpdateCartQuantity} 
                         min={0} 
-                        max={10} 
+                        max={product.stock || 10} 
                       />
                       <span style={{ fontSize: '0.875rem', color: '#059669', fontWeight: '500' }}>
                         {formatCurrency(product.price * cartItem.quantity)}
                       </span>
+                      {product.stock > 0 && cartItem.quantity >= product.stock && (
+                        <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: '500' }}>
+                          Max stock reached
+                        </span>
+                      )}
                       <button 
                         type="button" 
                         className="btn btn-primary" 
@@ -394,38 +450,85 @@ const ProductDetailPage = () => {
 
               {reviews.length > 0 && (
                 <ul className="reviews-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {reviews.map((rev) => (
-                    <li key={rev.id} className="review-card" style={{ 
-                      padding: '1.25rem', 
-                      borderBottom: '1px solid #e5e7eb',
-                      marginBottom: '0'
-                    }}>
-                      <div className="review-card__header" style={{ marginBottom: '0.75rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                          <StarRatingDisplay rating={rev.rating} />
-                          <span style={{ fontWeight: '500' }}>{rev.user?.fullName || 'Customer'}</span>
-                          {rev.isVerifiedPurchase && (
-                            <span style={{ 
-                              fontSize: '0.75rem', 
-                              backgroundColor: '#dcfce7', 
-                              color: '#166534',
-                              padding: '0.125rem 0.5rem',
-                              borderRadius: '9999px'
-                            }}>
-                              Verified purchase
-                            </span>
-                          )}
-                          {rev.createdAt && (
-                            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                              {new Date(rev.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}
-                            </span>
-                          )}
+                  {reviews.map((rev) => {
+                    const isOwnReview = user && rev.user?.id === user.id;
+                    return (
+                      <li key={rev.id} className="review-card" style={{ 
+                        padding: '1.25rem', 
+                        borderBottom: '1px solid #e5e7eb',
+                        marginBottom: '0'
+                      }}>
+                        <div className="review-card__header" style={{ marginBottom: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                              <StarRatingDisplay rating={rev.rating} />
+                              <span style={{ fontWeight: '500' }}>{rev.user?.fullName || 'Customer'}</span>
+                              {rev.isVerifiedPurchase && (
+                                <span style={{ 
+                                  fontSize: '0.75rem', 
+                                  backgroundColor: '#dcfce7', 
+                                  color: '#166534',
+                                  padding: '0.125rem 0.5rem',
+                                  borderRadius: '9999px'
+                                }}>
+                                  Verified purchase
+                                </span>
+                              )}
+                              {rev.createdAt && (
+                                <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                                  {new Date(rev.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                </span>
+                              )}
+                            </div>
+                            {isOwnReview && (
+                              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditReview(rev)}
+                                  style={{
+                                    padding: '0.5rem',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    color: '#4f46e5',
+                                    transition: 'opacity 0.2s'
+                                  }}
+                                  title="Edit review"
+                                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                                >
+                                  <EditIcon size={18} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteReview(rev.id)}
+                                  style={{
+                                    padding: '0.5rem',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    color: '#dc2626',
+                                    transition: 'opacity 0.2s'
+                                  }}
+                                  title="Delete review"
+                                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                                >
+                                  <DeleteIcon size={18} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      {rev.title && <h4 style={{ margin: '0 0 0.5rem', fontWeight: '600' }}>{rev.title}</h4>}
-                      {rev.comment && <p style={{ margin: 0, color: '#374151', lineHeight: '1.6' }}>{rev.comment}</p>}
-                    </li>
-                  ))}
+                        {rev.title && <h4 style={{ margin: '0 0 0.5rem', fontWeight: '600' }}>{rev.title}</h4>}
+                        {rev.comment && <p style={{ margin: 0, color: '#374151', lineHeight: '1.6' }}>{rev.comment}</p>}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -436,8 +539,11 @@ const ProductDetailPage = () => {
       {/* Review Modal */}
       <Modal
         isOpen={showReviewModal}
-        onClose={() => setShowReviewModal(false)}
-        title="Write a Review"
+        onClose={() => {
+          setShowReviewModal(false);
+          setEditingReview(null);
+        }}
+        title={editingReview ? "Edit Review" : "Write a Review"}
       >
         <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div>
@@ -527,6 +633,20 @@ const ProductDetailPage = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Review Confirmation */}
+      <ConfirmDialog
+        isOpen={!!deleteReviewId}
+        onClose={() => setDeleteReviewId(null)}
+        onConfirm={confirmDeleteReview}
+        title="Delete Review"
+        message="Are you sure you want to delete this review?"
+        details="Your review and rating will be permanently removed from this product."
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        confirmButtonStyle="danger"
+        isProcessing={deletingReview}
+      />
     </Layout>
   );
 };

@@ -151,6 +151,10 @@ export function getOrder(accessToken, orderId, options = {}) {
   return request(`/orders/${orderId}`, { accessToken, ...options });
 }
 
+export function deleteOrder(accessToken, orderId, options = {}) {
+  return request(`/orders/${orderId}`, { method: 'DELETE', accessToken, ...options });
+}
+
 export function signup(payload, options = {}) {
   return request('/auth/signup', { method: 'POST', data: payload, ...options });
 }

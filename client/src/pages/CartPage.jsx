@@ -68,12 +68,32 @@ const CartPage = () => {
                     <div className="cart-item__details">
                       <h3>{item.name}</h3>
                       <p className="cart-item__price">{formatCurrency(item.unitPrice)}</p>
+                      {item.stock <= 5 && item.stock > 0 && (
+                        <p style={{
+                          color: '#ef4444',
+                          fontSize: '0.875rem',
+                          marginTop: '0.25rem',
+                          fontWeight: '500'
+                        }}>
+                          Only {item.stock} left in stock
+                        </p>
+                      )}
+                      {item.stock === 0 && (
+                        <p style={{
+                          color: '#ef4444',
+                          fontSize: '0.875rem',
+                          marginTop: '0.25rem',
+                          fontWeight: '600'
+                        }}>
+                          Out of stock
+                        </p>
+                      )}
                       <div className="cart-item__actions">
                         <QuantityInput
                           value={item.quantity}
                           onChange={(qty) => updateItemQuantity(item.id, qty)}
                           min={0}
-                          max={10}
+                          max={item.stock || 10}
                         />
                         <button
                           type="button"

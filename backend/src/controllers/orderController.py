@@ -234,6 +234,29 @@ async def getOrder(*, user: User, orderId: str):
     return {"success": True, "data": {"order": _serialize_order(order, user), "items": items_payload}}
 
 
+async def deleteOrder(*, user: User, orderId: str):
+    """Delete an order and its items from history"""
+    object_id = _ensure_object_id(orderId)
+    order = await Order.find_one(Order.id == object_id, Order.user == user.id)
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    
+    # Only allow deletion of pending or cancelled orders (not paid/shipped/delivered)
+    if order.status in ['paid', 'processing', 'shipped', 'delivered']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Cannot delete orders that are paid, processing, shipped, or delivered"
+        )
+    
+    # Delete order items
+    await OrderItem.find(OrderItem.order == order.id).delete()
+    
+    # Delete the order
+    await order.delete()
+    
+    return {"success": True, "message": "Order deleted successfully"}
+
+
 async def listAllOrders():
     orders = await Order.find_all().sort("-createdAt").to_list()
     return {"success": True, "data": [_serialize_order(order) for order in orders]}

@@ -50,3 +50,9 @@ async def list_orders(user: User = Depends(authenticate)):
 @router.get("/{order_id}")
 async def get_order(order_id: str, user: User = Depends(authenticate)):
     return await orderController.getOrder(user=user, orderId=order_id)
+
+
+@router.delete("/{order_id}")
+async def delete_order(order_id: str, user: User = Depends(authenticate)):
+    """Delete an order from history"""
+    return await orderController.deleteOrder(user=user, orderId=order_id)

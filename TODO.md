@@ -30,8 +30,8 @@
 - [x] Add a wishlist feature.
 - [x] Add user reviews and ratings for products.
 - [x] Implement product filtering and sorting options.
-- [ ] Add a review modal (similar to the address modal) with star-based rating input; refresh the review UI.
-- [ ] Add visible product star ratings derived from user reviews.
+- [x] Add a review modal (similar to the address modal) with star-based rating input; refresh the review UI.
+- [x] Add visible product star ratings derived from user reviews.
 - [ ] Update the wishlist icon to the desired design (fix alignment inside the circle).
 
 ## P4 - Growth, payments, and operations

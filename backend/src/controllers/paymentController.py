@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 from beanie.odm.fields import PydanticObjectId
 from fastapi import HTTPException, Request, status
 
-from ..models import Cart, Order, OrderItem, Payment, User
+from ..models import Cart, Order, OrderItem, Payment, Product, User
 from ..services.cartService import clearCart
 from ..services.paymentService import (
     PaymentServiceError,
@@ -137,6 +137,26 @@ async def verifyRazorpayPayment(
     await order.save()
 
     items = await OrderItem.find(OrderItem.order == order.id).to_list()
+
+    # Deduct stock from products after successful payment
+    for item in items:
+        product = await Product.find_one(Product.id == item.product)
+        if product:
+            # Ensure stock doesn't go negative
+            new_stock = max(0, product.stock - item.quantity)
+            product.stock = new_stock
+            await product.save()
+            logger.info(
+                "Stock deducted after payment",
+                extra={
+                    "productId": str(product.id),
+                    "productName": product.name,
+                    "quantityDeducted": item.quantity,
+                    "newStock": new_stock,
+                    "orderId": str(order.id),
+                },
+            )
+            print(f"[payments] stock deducted product={product.id} qty={item.quantity} newStock={new_stock}")
 
     # Clear the user's cart after successful payment verification
     cart = await Cart.find_one(Cart.user == user.id)
