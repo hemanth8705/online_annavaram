@@ -142,7 +142,11 @@ async def signup(*, fullName: str, email: str, password: str, phone: Optional[st
     )
     await user.insert()
 
-    otp_payload = await assignOtp(user, "emailVerification")
+    try:
+        otp_payload = await assignOtp(user, "emailVerification")
+    except OtpServiceError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+    
     await user.save()
     background.add_task(
         sendOtpEmail,
@@ -165,7 +169,11 @@ async def resendOtp(*, email: str, response: Response, background: BackgroundTas
     if user.emailVerified:
         return {"success": True, "message": "Email already verified."}
 
-    otp_payload = await assignOtp(user, "emailVerification")
+    try:
+        otp_payload = await assignOtp(user, "emailVerification")
+    except OtpServiceError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+    
     await user.save()
     background.add_task(
         sendOtpEmail,
@@ -300,7 +308,11 @@ async def requestPasswordReset(*, email: str, response: Response, background: Ba
             detail="This email is not verified yet. Please verify your account before resetting the password.",
         )
 
-    payload = await assignOtp(user, "passwordReset")
+    try:
+        payload = await assignOtp(user, "passwordReset")
+    except OtpServiceError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+    
     await user.save()
     background.add_task(
         sendPasswordResetEmail,
@@ -461,7 +473,11 @@ async def requestEmailChangeOtp(*, request: Request, newEmail: str, background: 
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account already exists with this email address.")
     
     # Use emailVerification OTP state for email change (reusing existing OTP infrastructure)
-    otp_payload = await assignOtp(user, "emailVerification")
+    try:
+        otp_payload = await assignOtp(user, "emailVerification")
+    except OtpServiceError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+    
     # Store the new email in a temporary field (we'll verify it matches when confirming)
     user.pendingEmail = newEmail
     await user.save()

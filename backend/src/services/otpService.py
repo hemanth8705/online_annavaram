@@ -12,7 +12,8 @@ from ..models import User
 OTP_LENGTH = 6
 OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "10"))
 OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
-OTP_MAX_PER_DAY = int(os.getenv("OTP_MAX_PER_DAY", "3"))
+OTP_MAX_PER_WINDOW = int(os.getenv("OTP_MAX_PER_WINDOW", "3"))k
+OTP_RATE_LIMIT_MINUTES = int(os.getenv("OTP_RATE_LIMIT_MINUTES", "15"))
 
 SUPPORTED_BUCKETS = {"emailVerification", "passwordReset"}
 
@@ -54,7 +55,7 @@ def _optional_normalize(dt: datetime | None) -> datetime | None:
 
 
 def _purge_history(history: Iterable[datetime]) -> List[datetime]:
-    cutoff = datetime.now(tz=timezone.utc) - timedelta(days=1)
+    cutoff = datetime.now(tz=timezone.utc) - timedelta(minutes=OTP_RATE_LIMIT_MINUTES)
     normalized = [_normalize_datetime(entry) for entry in history if entry]
     return [entry for entry in normalized if entry > cutoff]
 
@@ -62,8 +63,8 @@ def _purge_history(history: Iterable[datetime]) -> List[datetime]:
 async def assignOtp(user: User, bucketKey: str = "emailVerification"):
     bucket = _ensure_bucket(user, bucketKey)
     history = _purge_history(bucket.sentHistory)
-    if len(history) >= OTP_MAX_PER_DAY:
-        raise OtpServiceError("OTP request limit reached. Try again later.", status=429)
+    if len(history) >= OTP_MAX_PER_WINDOW:
+        raise OtpServiceError(f"OTP request limit reached. Please try again after {OTP_RATE_LIMIT_MINUTES} minutes.", status=429)
 
     otp = _generate_otp()
     otp_hash = bcrypt.hash(otp)

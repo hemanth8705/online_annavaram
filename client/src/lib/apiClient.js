@@ -10,21 +10,24 @@ async function parseResponse(response) {
   const payload = isJSON ? await response.json() : await response.text();
 
   if (!response.ok) {
-    let message = typeof payload === 'object' && payload?.message
-      ? payload.message
+    // FastAPI sends errors in 'detail' field, fallback to 'message' for other APIs
+    let message = typeof payload === 'object' && (payload?.detail || payload?.message)
+      ? (payload.detail || payload.message)
       : `Request failed with status ${response.status}`;
     
-    // User-friendly error messages
-    if (response.status === 401) {
-      message = 'Your session has expired. Please log in again to continue.';
-    } else if (response.status === 403) {
-      message = 'You do not have permission to perform this action.';
-    } else if (response.status === 404) {
-      message = 'The requested resource was not found.';
-    } else if (response.status === 421) {
-      message = 'Request format is incorrect. Please refresh the page and try again.';
-    } else if (response.status >= 500) {
-      message = 'Server error occurred. Please try again later.';
+    // Only use generic messages if the server didn't provide a specific one
+    if (!payload?.detail && !payload?.message) {
+      if (response.status === 401) {
+        message = 'Your session has expired. Please log in again to continue.';
+      } else if (response.status === 403) {
+        message = 'You do not have permission to perform this action.';
+      } else if (response.status === 404) {
+        message = 'The requested resource was not found.';
+      } else if (response.status === 421) {
+        message = 'Request format is incorrect. Please refresh the page and try again.';
+      } else if (response.status >= 500) {
+        message = 'Server error occurred. Please try again later.';
+      }
     }
     
     const error = new Error(message);

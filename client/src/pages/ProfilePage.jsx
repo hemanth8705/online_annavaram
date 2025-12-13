@@ -239,6 +239,7 @@ const ProfilePage = () => {
             });
             showToast('Payment successful!', 'success');
             setShowPaymentModal(false);
+            setPaymentLoading(false);
             const response = await listOrders(accessToken);
             setOrders(response?.data ?? response ?? []);
           } catch (err) {
@@ -261,10 +262,11 @@ const ProfilePage = () => {
         setPaymentLoading(false);
       });
       razorpayInstance.open();
+      // Keep loading state while Razorpay modal is open
+      // It will be cleared in modal.ondismiss or payment.failed handlers
     } catch (err) {
       console.error('Payment initiation failed', err);
       showToast(err.message || 'Failed to initiate payment', 'error');
-    } finally {
       setPaymentLoading(false);
     }
   };
@@ -947,7 +949,7 @@ const ProfilePage = () => {
                 onClick={handleMakePayment}
                 disabled={paymentLoading}
               >
-                {paymentLoading ? 'Processing...' : `Pay ${formatCurrency(selectedOrder.totalAmount)}`}
+                {paymentLoading ? 'Initializing Razorpay...' : `Pay ${formatCurrency(selectedOrder.totalAmount)}`}
               </button>
             </div>
           </div>
