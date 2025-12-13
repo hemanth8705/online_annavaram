@@ -160,6 +160,10 @@ export function login(payload, options = {}) {
   return request('/auth/login', { method: 'POST', data: payload, ...options });
 }
 
+export function googleAuth(payload, options = {}) {
+  return request('/auth/google', { method: 'POST', data: payload, ...options });
+}
+
 export function listAddresses(accessToken, options = {}) {
   return request('/auth/addresses', { accessToken, ...options });
 }

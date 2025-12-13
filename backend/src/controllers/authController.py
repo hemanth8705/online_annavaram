@@ -213,6 +213,14 @@ async def login(*, email: str, password: str, request: Request, response: Respon
     user = await User.find_one(User.email == email.lower())
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
+    
+    # Check if this is a Google-only user (no password set)
+    if not user.passwordHash:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This account uses Google sign-in. Please continue with Google."
+        )
+    
     if not password_context.verify(password, user.passwordHash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
     if not user.emailVerified:
@@ -417,3 +425,91 @@ async def deleteAddress(*, request: Request, address_id: str):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Address not found.")
     await user.save()
     return {"success": True, "data": {"addresses": _serialize_user(user)["addresses"]}}
+
+
+async def googleAuth(*, idToken: str, request: Request, response: Response):
+    """
+    Authenticate user via Google ID token.
+    Verifies the token server-side using Google's public keys.
+    Creates a new user if not exists, or logs in existing user.
+    """
+    from google.oauth2 import id_token as google_id_token
+    from google.auth.transport import requests as google_requests
+
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not google_client_id:
+        logger.error("GOOGLE_CLIENT_ID environment variable not configured")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google authentication is not configured on server."
+        )
+
+    try:
+        # Verify the ID token with Google's servers
+        # This validates: signature, expiration, audience (client_id), issuer
+        idinfo = google_id_token.verify_oauth2_token(
+            idToken,
+            google_requests.Request(),
+            google_client_id
+        )
+
+        # Verify issuer
+        if idinfo.get("iss") not in ["accounts.google.com", "https://accounts.google.com"]:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token issuer."
+            )
+
+        # Extract user info from verified token
+        email = idinfo.get("email", "").lower()
+        email_verified = idinfo.get("email_verified", False)
+        full_name = idinfo.get("name", "")
+        google_sub = idinfo.get("sub")  # Unique Google user ID
+
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email not provided by Google."
+            )
+
+        logger.info(f"Google auth: verified token for email={email}, sub={google_sub}")
+
+    except ValueError as e:
+        logger.warning(f"Google token verification failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired Google token."
+        )
+
+    # Check if user exists
+    user = await User.find_one(User.email == email)
+
+    if user:
+        # Existing user - update emailVerified if Google says it's verified
+        if email_verified and not user.emailVerified:
+            user.emailVerified = True
+            await user.save()
+            logger.info(f"Google auth: marked existing user email as verified, email={email}")
+    else:
+        # New user - create account (no password needed for Google-only auth)
+        user = User(
+            fullName=full_name or email.split("@")[0],
+            email=email,
+            passwordHash=None,  # Google users don't have a password
+            phone=None,
+            emailVerified=email_verified,
+            googleId=google_sub,
+        )
+        await user.insert()
+        logger.info(f"Google auth: created new user, email={email}")
+
+    # Create session and return auth response
+    session, access_token, access_expires = await createSession(user=user, request=request)
+    _set_refresh_cookie(response, session.refreshToken, session.expiresAt)
+
+    return _build_auth_response(
+        user=user,
+        access_token=access_token,
+        access_expires=access_expires,
+        session=session,
+    )

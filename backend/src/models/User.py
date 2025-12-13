@@ -34,7 +34,7 @@ class OTPState(BaseModel):
 class User(TimeStampedDocument):
     fullName: str
     email: Indexed(EmailStr, unique=True)  # type: ignore[assignment]
-    passwordHash: str
+    passwordHash: Optional[str] = None  # None for Google-only users
     phone: Optional[str] = None
     role: Literal["customer", "admin"] = "customer"
     addresses: List[Address] = Field(default_factory=list)
@@ -43,6 +43,7 @@ class User(TimeStampedDocument):
     emailVerifiedAt: Optional[datetime] = None
     emailVerification: OTPState = Field(default_factory=OTPState)
     passwordReset: OTPState = Field(default_factory=OTPState)
+    googleId: Optional[str] = None  # Google user ID (sub claim)
 
     class Settings:
         name = "users"

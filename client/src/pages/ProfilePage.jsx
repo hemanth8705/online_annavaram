@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import LoadingState from '../components/common/LoadingState';
 import ErrorMessage from '../components/common/ErrorMessage';
@@ -8,7 +8,8 @@ import { listOrders } from '../lib/apiClient';
 import { formatCurrency } from '../lib/formatters';
 
 const ProfilePage = () => {
-  const { user, accessToken } = useAuth();
+  const { user, accessToken, hydrated } = useAuth();
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
@@ -58,6 +59,74 @@ const ProfilePage = () => {
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
+
+  // Show loading state while hydrating auth
+  if (!hydrated) {
+    return (
+      <Layout>
+        <section className="section">
+          <div className="container">
+            <LoadingState label="Loading..." />
+          </div>
+        </section>
+      </Layout>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!accessToken || !user) {
+    return (
+      <Layout>
+        <section className="page-header">
+          <div className="container page-header__inner">
+            <h1>My Profile</h1>
+            <p>Sign in to view your account and order history</p>
+          </div>
+        </section>
+        
+        <section className="section">
+          <div className="container">
+            <div className="auth-prompt" style={{
+              textAlign: 'center',
+              padding: '3rem 1.5rem',
+              backgroundColor: '#f9fafb',
+              borderRadius: '0.75rem',
+              maxWidth: '32rem',
+              margin: '0 auto'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👤</div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.75rem', color: '#111827' }}>
+                Sign in to Your Account
+              </h2>
+              <p style={{ color: '#6b7280', marginBottom: '1.5rem', lineHeight: '1.6' }}>
+                Please log in or create an account to view your profile, track orders, and manage your account settings.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link 
+                  to="/auth/login" 
+                  state={{ from: location.pathname }}
+                  className="btn btn-primary"
+                >
+                  Log In
+                </Link>
+                <Link 
+                  to="/auth/signup" 
+                  className="btn btn-secondary"
+                  style={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #d1d5db',
+                    color: '#374151'
+                  }}
+                >
+                  Create Account
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

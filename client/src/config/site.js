@@ -151,7 +151,7 @@ export const SITE_CONTENT = {
         title: 'Follow Us',
         className: 'social-links',
         links: [
-          { label: 'Instagram', href: 'https://instagram.com/onlineannavaram' },
+          { label: 'Instagram', href: 'https://www.instagram.com/online_annavaram/' },
           { label: 'YouTube', href: 'https://youtube.com/@onlineannavaram' },
           { label: 'Facebook', href: 'https://facebook.com/onlineannavaram' },
         ],

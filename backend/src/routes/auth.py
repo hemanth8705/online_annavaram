@@ -159,3 +159,20 @@ async def update_address(addressId: str, payload: AddressPayload, request: Reque
 @router.delete("/addresses/{addressId}")
 async def delete_address(addressId: str, request: Request, user: User = Depends(authenticate)):
     return await authController.deleteAddress(request=request, address_id=addressId)
+
+
+class GoogleAuthPayload(BaseModel):
+    idToken: str = Field(..., min_length=1, description="Google ID token from frontend")
+
+
+@router.post("/google")
+async def google_auth(payload: GoogleAuthPayload, request: Request, response: Response):
+    """
+    Authenticate with Google ID token.
+    Verifies the token server-side and creates/logs in the user.
+    """
+    return await authController.googleAuth(
+        idToken=payload.idToken,
+        request=request,
+        response=response,
+    )

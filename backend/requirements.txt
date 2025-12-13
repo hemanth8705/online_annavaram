@@ -12,3 +12,4 @@ razorpay
 beanie
 python-multipart
 httpx
+google-auth

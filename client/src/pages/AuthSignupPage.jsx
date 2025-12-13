@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import GoogleSignInButton from '../components/common/GoogleSignInButton';
 import useAuth from '../hooks/useAuth';
 
 const initialState = {
@@ -12,7 +13,7 @@ const initialState = {
 
 const AuthSignupPage = () => {
   const navigate = useNavigate();
-  const { signup, authStatus, authError, setAuthError, accessToken, hydrated, user } = useAuth();
+  const { signup, googleLogin, authStatus, authError, setAuthError, accessToken, hydrated, user } = useAuth();
   const [form, setForm] = useState(initialState);
   const [successMessage, setSuccessMessage] = useState('');
   const wasAuthenticatedOnMount = useRef(null);
@@ -45,12 +46,59 @@ const AuthSignupPage = () => {
     }
   };
 
+  const handleGoogleSuccess = useCallback(
+    async (idToken) => {
+      setSuccessMessage('');
+      setAuthError?.(null);
+      try {
+        const response = await googleLogin(idToken);
+        setSuccessMessage(response?.message || 'Signed in with Google!');
+        setTimeout(() => navigate('/'), 600);
+      } catch (error) {
+        // error surfaced via context
+      }
+    },
+    [googleLogin, navigate, setAuthError]
+  );
+
+  const handleGoogleError = useCallback(
+    (error) => {
+      console.error('Google Sign-In error:', error);
+      setAuthError?.(error?.message || 'Google sign-in failed. Please try again.');
+    },
+    [setAuthError]
+  );
+
+  const isLoading = authStatus === 'signup' || authStatus === 'google';
+
   return (
     <Layout>
       <section className="section auth-section">
         <div className="container auth-card">
           <h1>Create your account</h1>
           <p>We'll email you a one-time code to verify your address.</p>
+          
+          {/* Google Sign-In Button */}
+          <div className="google-signin-wrapper" style={{ marginBottom: '1.5rem' }}>
+            <GoogleSignInButton
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              disabled={isLoading}
+              text="signup_with"
+            />
+          </div>
+          
+          <div className="auth-divider" style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            margin: '1.5rem 0',
+            gap: '1rem'
+          }}>
+            <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #e5e7eb' }} />
+            <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>or</span>
+            <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #e5e7eb' }} />
+          </div>
+
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="form-field">
               <label htmlFor="fullName">Full name</label>
@@ -62,6 +110,7 @@ const AuthSignupPage = () => {
                 value={form.fullName}
                 onChange={handleChange}
                 placeholder="e.g., Sita Lakshmi"
+                disabled={isLoading}
               />
             </div>
             <div className="form-field">
@@ -74,6 +123,7 @@ const AuthSignupPage = () => {
                 value={form.email}
                 onChange={handleChange}
                 placeholder="name@example.com"
+                disabled={isLoading}
               />
             </div>
             <div className="form-field">
@@ -87,6 +137,7 @@ const AuthSignupPage = () => {
                 value={form.password}
                 onChange={handleChange}
                 placeholder="At least 8 characters"
+                disabled={isLoading}
               />
             </div>
             <div className="form-field">
@@ -98,6 +149,7 @@ const AuthSignupPage = () => {
                 value={form.phone}
                 onChange={handleChange}
                 placeholder="WhatsApp or mobile number"
+                disabled={isLoading}
               />
             </div>
             {authError && <p className="form-error">{authError}</p>}
@@ -105,9 +157,9 @@ const AuthSignupPage = () => {
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={authStatus === 'signup'}
+              disabled={isLoading}
             >
-              {authStatus === 'signup' ? 'Creating account...' : 'Sign Up'}
+              {authStatus === 'signup' ? 'Creating account...' : authStatus === 'google' ? 'Signing in with Google...' : 'Sign Up'}
             </button>
           </form>
           <p className="auth-footer-text">

@@ -4,6 +4,7 @@ import {
   verifyEmail as verifyEmailRequest,
   resendOtp as resendOtpRequest,
   login as loginRequest,
+  googleAuth as googleAuthRequest,
   requestPasswordReset as requestPasswordResetRequest,
   resetPassword as resetPasswordRequest,
   refreshSession as refreshSessionRequest,
@@ -205,6 +206,25 @@ export const AuthProvider = ({ children }) => {
     [applyAuthSession]
   );
 
+  const googleLogin = useCallback(
+    async (idToken) => {
+      setAuthStatus('google');
+      setAuthError(null);
+      try {
+        const response = await googleAuthRequest({ idToken });
+        applyAuthSession(response);
+        setPendingEmail(null);
+        setAuthStatus('idle');
+        return response;
+      } catch (error) {
+        setAuthStatus('idle');
+        setAuthError(error.message || 'Google sign-in failed');
+        throw error;
+      }
+    },
+    [applyAuthSession]
+  );
+
   const logout = useCallback(() => {
     setUser(null);
     setAccessToken(null);
@@ -249,6 +269,7 @@ export const AuthProvider = ({ children }) => {
       verifyEmail,
       resendOtp,
       login,
+      googleLogin,
       requestPasswordReset,
       resetPassword,
       logout,
@@ -262,6 +283,7 @@ export const AuthProvider = ({ children }) => {
       authStatus,
       hydrated,
       login,
+      googleLogin,
       logout,
       pendingEmail,
       resendOtp,
