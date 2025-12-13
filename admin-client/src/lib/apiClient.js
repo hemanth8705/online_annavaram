@@ -1,6 +1,13 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+// Use the deployed API URL when provided; only fall back to localhost during local development.
+const devFallbackUrl = 'http://localhost:5001/api';
+const envApiUrl = import.meta.env.VITE_API_URL;
+const API_URL = envApiUrl || (import.meta.env.DEV ? devFallbackUrl : '');
+
+if (!API_URL) {
+  throw new Error('VITE_API_URL is not configured. Set it to your deployed admin backend URL.');
+}
 
 // Create axios instance
 const apiClient = axios.create({
